@@ -1,0 +1,12 @@
+This distribution has several dependencies, and is best installed from CPAN.
+
+  perl -MCPAN -e 'install Devel::Ladybug'
+
+Assuming dependencies have been installed, this may also be done manually.
+
+  cd Devel-Ladybug-xxxx
+  perl Makefile.PL
+  make
+  make test
+  make install
+

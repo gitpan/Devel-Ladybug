@@ -1,0 +1,108 @@
+.320
+  - Rename project from OP to Devel::Ladybug
+  - Always provide an RCS archive extension (possible fix for openrcs)
+  - Remove deps and update dep versions
+
+2009-10-17: .319
+  - Add support + tests for PostgreSQL
+  - Fixed ExtID support for non-InnoDB-backed classes + added tests
+  - Cleaned up auto-detection, removed duplicate test code
+  - Leaving dbPort undef (~) in .oprc will make OP use default port for
+    specified dbi type
+  - Add foreign key support for future versions of DBD::SQLite
+  - Type::allowed($value) now returns true or throws an exception
+
+2009-10-14: .318
+  - Add support for cross-database foreign keys (just assert ExtID as usual)
+  - Non-InnoDB classes won't try to use InnoDB for their linked tables (oops)
+  - Run with hardcoded defaults if .oprc is not found
+  - Automatically choose the "best" available backing store type
+    on the local system, if no explicit __useYaml, __useDbi, or __dbiType
+    values were given for a class
+  - OP::Persistence - __selectBool(), __selectSingle() and __selectMulti()
+    are now considered public and have been renamed to selectBool(),
+    selectSingle() and selectMulti() (old names will work + warn for now)
+  - More misc doc updates, tweaks, and fixes
+
+2009-10-01: .317
+  - Doc updates, more tweaks and fixes for RCS
+
+2009-09-12: .316
+  - Warn and disable RCS if binaries are not found (thx testers)
+
+2009-09-10: .315
+  - Most public methods with an "id" arg now accept either base64
+    or string GUID forms
+  - Gave RCS support some attention, added tests
+
+2009-09-04: .314
+  - Removed default of 0 for DateTime, will allow NULL instead
+  - Split auxiliary datatypes off into their own distro
+  - Split experimental packages off into their own distro
+  - Reduced number of classes loaded by default
+  - Added more tests
+  - Fixed symbols exported via :yield tag
+  - More misc cleanup
+
+2009-09-02: .313
+  - Made all exports from OP.pm optional, added export tags
+  - Skip MySQL tests if database was not available
+
+2009-08-27: .312
+  - Try fixing test script to work properly under Perl 5.11
+  - Added manifesto-esque postamble to main OP.pm document
+  - Misc doc updates
+
+2009-08-20: .311
+  - Changed from developer release to stable
+  - OP::Shell was moved to its own distribution, Acme::Shell
+
+2009-08-17: .310_001
+  - Rewrote tests and added runtime framework loader (OP::Runtime)
+  - Persistence now delegates to vendor-specific DBI packages,
+    rather than hosting a bunch of if/else statements. Future backing
+    store types should extend OP::Persistence::Generic and override
+    DBI logic as necessary.
+  - Gave SQLite support some attention
+  - Added OP::Serial for first-class Serial type assertions
+
+2009-08-10: .308
+  - More doc updates and bug fixes
+  - OP::DateTime now supports DATETIME + other column types, see POD
+  - OP::Double now avoids E notation when stringifying, see POD
+
+2009-07-28: .305
+  - OP_HOME now defaults to the current user's home directory
+  - Added "opconf" .oprc generation script
+  - OP::Subtype constructors are no longer used outside of OP
+    internals-- the "subtype" assert argument has been added, which
+    replaces them in public usage and should feel cleaner (see examples)
+  - OP no longer has to be bootstrapped from package 'main', and no
+    longer exports OP::Subtype constructors
+  - OP.t now skips tests if it can't find a usable temp filesystem
+  - More doc updates and bug fixes
+
+2009-07-24: .304
+  - Updated docs
+  - make test: Cleanup error handling, added schema manip tests
+  - Cleanup handling of custom rc files
+  - Added "oped" and "opid" cli utils
+
+2009-07-12: .303
+  - Bozo fixes
+
+2009-07-10: .302
+  - Got rid of some half-baked experimental features
+
+2009-06-19: .300
+  - Removed all usage of source filters
+  - Misc fixes to experimental classes
+
+2009-04-21: Developer release 0.20_03
+  - 0.21 release candidate
+  - Add missing dependencies to Makefile.PL
+  - Add rudimentary post-install test script
+  - Several doc edits
+  - Minor bug fixes and tweaks for CPAN indexer
+
+2009-04-17: Initial CPAN release 0.20

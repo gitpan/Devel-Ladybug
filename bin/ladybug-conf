@@ -1,0 +1,65 @@
+#!/bin/env perl
+
+#
+# Create a new .ladybugrc and allow the user to edit it
+#
+
+use strict;
+use warnings;
+
+use File::HomeDir;
+use YAML::Syck;
+
+use constant VIM => '/usr/bin/vim';
+
+sub main {
+  eval {
+    my $bail = sub {
+      print "Guess not.\n";
+
+      exit;
+    };
+    $SIG{INT}  = $bail;
+    $SIG{ALRM} = $bail;
+
+    alarm(5);
+
+    print "Do you want to edit your .ladybugrc? [Y/n]\n";
+    print "(Will answer NO in 5 seconds...)\n";
+
+    my $bool = <STDIN>;
+    chomp($bool);
+    $bool ||= 'y';
+    exit if $bool !~ /^y/i;
+
+    alarm(0);
+  };
+
+  $ENV{LADYBUG_HOME} ||= File::HomeDir->my_home;
+
+  my $path = join( "/", $ENV{LADYBUG_HOME}, ".ladybugrc" );
+
+  if ( !-e $path ) {
+    my $conf = {
+      yamlHost       => undef,
+      yamlRoot       => join( '/', $ENV{LADYBUG_HOME}, 'yaml' ),
+      sqliteRoot     => join( '/', $ENV{LADYBUG_HOME}, 'sqlite' ),
+      scratchRoot    => '/tmp',
+      dbHost         => 'localhost',
+      dbPass         => undef,
+      dbPort         => undef,
+      dbUser         => 'op',
+      memcachedHosts => [ '127.0.0.1:31337', ],
+      rcsBindir      => '/usr/bin',
+      rcsDir         => 'RCS',
+    };
+
+    open( CONF, ">", $path ) || die $!;
+    print CONF YAML::Syck::Dump($conf);
+    close(CONF);
+  }
+
+  system( VIM, $path );
+}
+
+main;

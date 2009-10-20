@@ -1,0 +1,22 @@
+NAME
+
+    Devel::Ladybug - Compact Perl 5 class prototyping with object persistence
+
+SYNOPSIS
+
+    use strict;
+    use warnings;
+
+    use Devel::Ladybug qw| :all |;
+
+    create "YourApp::YourClass" => { };
+
+DESCRIPTION
+
+    Devel::Ladybug is a Perl 5 framework for prototyping schema-backed
+    object classes.
+
+GETTING STARTED
+
+    perldoc Devel::Ladybug for a high level overview.
+

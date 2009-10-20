@@ -1,0 +1,28 @@
+--- #YAML:1.0
+name:                Devel-Ladybug
+version:             0.399_001
+abstract:            ~
+license:             open_source
+author:              
+    - Alex Ayars <pause@nodekit.org>
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
+    Cache::Memcached::Fast:        0.16
+    Clone:                         0.31
+    Data::GUID:                    0.045
+    Digest::SHA1:                  2.12
+    Error:                         0.17015
+    File::HomeDir:                 0.86
+    File::Tempdir:                 0.02
+    GlobalDBI:                     0.21
+    Math::VecStat:                 0.08
+    Rcs:                           1.05
+    Test::Simple:                  0.94
+    Time::Piece:                   1.12
+    Unicode::String:               2.09
+    URI:                           1.4
+    YAML::Syck:                    1.07
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
