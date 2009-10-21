@@ -739,7 +739,7 @@ sub tableName {
   my $tableName = $class->get("__tableName");
 
   if ( !$tableName ) {
-    $tableName = lc($class);
+    $tableName = $class;
 
     if ( $class =~ /Devel::Ladybug::/ ) {
       $tableName =~ s/Devel::Ladybug:://;
@@ -748,6 +748,7 @@ sub tableName {
     }
 
     $tableName =~ s/::/_/g;
+    $tableName = lc($tableName);
 
     $class->set( "__tableName", $tableName );
   }
@@ -2634,16 +2635,29 @@ sub __init {
   my $class = shift;
 
   if ( $class->__useRcs ) {
-    my $ci = join( '/', rcsBindir, 'ci' );
-    my $co = join( '/', rcsBindir, 'co' );
-
-    if ( !-e $ci || !-e $co ) {
+    if ( $^O eq 'openbsd' ) {
+      #
+      # XXX Contacted OpenRCS author re: arch dir probs, will fix this later
+      #
       $class->set( "__useRcs", false );
 
       if ( !$alreadyWarnedForRcs ) {
-        warn "Disabling RCS support (\"ci\"/\"co\" not found)\n";
+        warn "Disabling RCS support (OpenRCS not currently supported)\n";
 
         $alreadyWarnedForRcs++;
+      }
+    } else {
+      my $ci = join( '/', rcsBindir, 'ci' );
+      my $co = join( '/', rcsBindir, 'co' );
+
+      if ( !-e $ci || !-e $co ) {
+        $class->set( "__useRcs", false );
+
+        if ( !$alreadyWarnedForRcs ) {
+          warn "Disabling RCS support (\"ci\"/\"co\" not found)\n";
+
+          $alreadyWarnedForRcs++;
+        }
       }
     }
   }
@@ -2814,8 +2828,6 @@ sub remove {
   if ( $class->__useYaml() ) {
     $self->_fsDelete();
   }
-
-  $self->clear();
 
   return true;
 }
@@ -3385,13 +3397,6 @@ sub _localSaveInsideTransaction {
     # Initial checkout:
     #
     if ($useRcs) {
-      $rcs = Rcs->new();
-
-      $path =~ /(.*)\/(.*)/;
-
-      my $directory = $1;
-      my $filename  = $2;
-
       my $rcsBase = $class->__baseRcsPath();
 
       if ( !-d $rcsBase ) {
@@ -3401,9 +3406,7 @@ sub _localSaveInsideTransaction {
         }
       }
 
-      $rcs->file($filename);
-      $rcs->rcsdir($rcsBase);
-      $rcs->workdir($directory);
+      $rcs = $self->_rcs();
 
       $self->_checkout( $rcs, $path );
     }
