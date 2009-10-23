@@ -112,7 +112,7 @@ sub init {
       dbHost         => 'localhost',
       dbPass         => undef,
       dbPort         => undef,
-      dbUser         => 'op',
+      dbUser         => 'ladybug',
       memcachedHosts => [ '127.0.0.1:31337', ],
       rcsBindir      => '/usr/bin',
       rcsDir         => 'RCS',

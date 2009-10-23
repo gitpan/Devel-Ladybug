@@ -22,10 +22,10 @@ MySQL/InnoDB
 Enables the MySQL/InnoDB backing store.
 
 When using MySQL, you must create and grant access to your
-application's database and the "op" database prior to use.
+application's database and the "ladybug" database prior to use.
 
   # mysql -u root -p
-  mysql> create database "op";
+  mysql> create database "ladybug";
   mysql> grant all on op.* to <username>@<hostname>;
 
   mysql> create database "yourapp";

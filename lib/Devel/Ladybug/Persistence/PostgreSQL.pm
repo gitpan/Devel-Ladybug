@@ -22,7 +22,7 @@ PostgreSQL
 Enables the PostgreSQL backing store.
 
 When using PostgreSQL, you must create and grant access to your
-application's database and the "op" database prior to use.
+application's database and the "ladybug" database prior to use.
 
 =head1 FUNCTION
 
