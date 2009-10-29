@@ -11,7 +11,7 @@
 
 package Devel::Ladybug;
 
-our $VERSION = '0.399_003';
+our $VERSION = '0.400';
 
 use strict;
 use diagnostics;
@@ -111,7 +111,7 @@ use it in conjunction with the permanent backing store.
 
 =head1 VERSION
 
-This documentation is for version B<0.399_003> of Devel::Ladybug.
+This documentation is for version B<0.400> of Devel::Ladybug.
 
 =head1 EXPORT TAGS
 
