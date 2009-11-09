@@ -1,3 +1,7 @@
+.401
+  - Fix problem w/self-referential tables and add test case
+  - Rewrote docs for ExtID and included several examples
+
 .399_xxx
   - Rename project from OP to Devel::Ladybug
   - Remove deps and update dep versions

@@ -476,5 +476,68 @@ sub testExtID {
     ok( $class->__dropTable(),      "Drop " . $class->tableName );
   }
 
+  return testSelfReferentialClass($class, $prototype);
+}
+
+sub testSelfReferentialClass {
+  my $class     = shift;
+  my $prototype = shift;
+
+  $Devel::Ladybug::Persistence::dbi = {};
+
+  $class .= "_SelfRef";
+
+  ok(
+    testCreate(
+      $class => {
+        %{$prototype},
+
+        parentId => Devel::Ladybug::ExtID->assert($class,
+          Devel::Ladybug::Type::subtype( optional => true ) ),
+      }
+    ),
+    "Allocate self-referential class"
+  );
+
+  if ( $class->__useDbi ) {
+    ok( $class->__dropTable(),      "Drop " . $class->tableName );
+
+    ok( $class->__createTable(), "Create " . $class->tableName );
+  }
+
+  my $parent = $class->new( name => "Parent" );
+  ok( $parent->save(), "Save parent object" );
+
+  my $child = $class->new(
+    name     => "Child",
+    parentId => $parent->id
+  );
+
+  ok( $child->save(), "Save child object" );
+
+  ok( $child->remove(),  "Remove child object" );
+  ok( $parent->remove(), "Remove parent object" );
+
+  my $worked;
+
+  eval {
+    $child->setParentId("garbageIn");
+    $child->save();
+
+    $child->remove;
+  };
+
+  if ($@) {
+
+    #
+    # This means the operation failed because constraints worked
+    #
+    $worked++;
+  }
+
+  if ( $class->__useDbi ) {
+    ok( $class->__dropTable(),      "Drop " . $class->tableName );
+  }
+
   return $worked;
 }

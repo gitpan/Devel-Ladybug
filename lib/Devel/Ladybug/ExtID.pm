@@ -13,21 +13,33 @@
 
 =head1 NAME
 
-Devel::Ladybug::ExtID - Overloaded object class for foreign key
-constraints.
-
-Extends L<Devel::Ladybug::Str>.
+Devel::Ladybug::ExtID - Define inter-object relationships
 
 =head1 SYNOPSIS
 
   use Devel::Ladybug qw| :all |;
 
-  create "YourApp::Example" => {
-    categoryId => Devel::Ladybug::ExtID->assert(
-      "YourApp::Category"
-    ),
-
+  create "YourApp::ChildObject" => {
+    parentObjectId => Devel::Ladybug::ExtID->assert(
+      "YourApp::ParentObject"
+    )
   };
+
+=head1 DESCRIPTION
+
+Ladybug's ExtID assertions are a simple and powerful way to define
+cross-object, cross-table relationships. An ExtID is a column/instance
+variable which points at the ID of another object.
+
+Extends L<Devel::Ladybug::Str>.
+
+=head1 RELATIONSHIP DIRECTION
+
+B<This is important.>
+
+Always use parent id in a child object, rather than child id in a
+parent object-- or else cascading operations will probably eat your
+data in unexpected and unwanted ways.
 
 =head1 PUBLIC CLASS METHODS
 
@@ -41,121 +53,160 @@ classes, or within a class to define parent/child hierarchy.
 Attributes asserted as ExtID must match an id in the specified class's
 database table.
 
-ExtID may be wrapped in an Array assertion for handling one-to-many
-relationships, at a small performance cost.
+If using a backing store which supports it, ExtID assertions also
+enforce database-level foreign key constraints.
 
-If using MySQL, C<ExtID> also enforces database-level foreign key
-constraints. In addition to enforcing allowed values on the database
-level, this will incur a CASCADE operation on DELETE and UPDATE events
-(meaning if a parent is deleted or updated, the corresponding child
-rows will be deleted or updated as well; always use parent id in a
-child object, rather than child id in a parent object).
+=back
 
-The following example illustrates self-referencing and externally
-referencing attributes with ExtID, using the "Folder" and "Document"
-desktop paradigm. Each saved object becomes a row in a database table.
+=head1 EXAMPLES
 
-Create a folder class for documents and other folders:
+=head2 Self-Referencing Table
+
+Create a class of object which refers to itself by parent ID:
 
   #
-  # File: ExampleFolder.pm
+  # File: YourApp/ParentObject.pm
   #
+  use strict;
+  use warnings;
 
   use Devel::Ladybug qw| :all |;
 
-  create "YourApp::Example::Folder" => {
+  create "YourApp::ParentObject" => {
     #
     # Folders can go in other folders:
     #
     parentId => Devel::Ladybug::ExtID->assert(
-      "YourApp::Example::Folder",
+      "YourApp::ParentObject",
       subtype(
-        optional => 1
-      )
-    ),
-
-    ...
-  };
-
-A document class. Documents refer to their parent folder:
-
-  #
-  # File: ExampleTextDocument.pm
-  #
-
-  use Devel::Ladybug qw| :all |;
-  use YourApp::Example::Folder;
-
-  create "YourApp::Example::TextDocument" => {
-    #
-    # This doc's location in the folder hierarchy
-    #
-    folderId => Devel::Ladybug::ExtID->assert("YourApp::Example::Folder"),
-
-    #
-    # Textual content of the document
-    #
-    content  => Devel::Ladybug::Str->assert(
-      subtype(
-        columnType => "TEXT"
+        optional => true
       )
     ),
 
     # ...
   };
 
-Caller example which populates some test folders and docs:
+Meanwhile, in caller, create a top-level object and a child object
+which refers to it:
 
-  #!/bin/env perl
   #
-  # File: somecaller.pl
+  # File: test-selfref.pl
   #
-
   use strict;
   use warnings;
 
-  use YourApp::Example::Folder;
-  use YourApp::Example::TextDocument;
+  use YourApp::ParentObject;
 
-  sub main {
-    #
-    # A parent folder named "General"
-    #
-    my $folder = YourApp::Example::Folder->spawn("General");
-    $folder->save();
+  my $parent = YourApp::ParentObject->new(
+    name => "Hello Parent"
+  );
 
-    #
-    # A child folder named "Specific"
-    #
-    my $subfolder = YourApp::Example::Folder->spawn("Specific");
-    $subfolder->setFolderId( $folder->id() );
-    $subfolder->save();
+  $parent->save;
 
-    #
-    # Put a test document "README" in the parent folder:
-    #
-    my $readme = YourApp::Example::TextDocument->spawn("README");
-    $readme->setFolderId( $folder->id() );
-    $readme->setContent("Lorem Ipsum Foo! Bla bla bla...");
-    $readme->save();
+  my $child = YourApp::ChildObject"->new(
+    name => "Hello Child",
+    parentId => $parent->id,
+  );
 
-    #
-    # Put a "Test Text Doc" doc in the sub-folder:
-    #
-    my $doc = YourApp::Example::TextDocument->spawn("Test Text Doc");
-    $doc->setFolderId( $subfolder->id() );
-    $doc->setContent("Lorem Ipsum Foo! Bla bla bla...");
-    $doc->save();
-  }
+  $child->save;
 
-  main();
+=head2 Externally Referencing Table
+
+A document class, building on the above example. Documents refer
+to their parent by ID:
+
+  #
+  # File: YourApp/ChildObject.pm
+  #
+  use strict;
+  use warnings;
+
+  use Devel::Ladybug qw| :all |;
+
+  use YourApp::ParentObject; # You must "use" any external classes
+
+  create "YourApp::ChildObject" => {
+    parentId => Devel::Ladybug::ExtID->assert(
+      "YourApp::ParentObject"
+    )
+
+  };
+
+Meanwhile, in caller, create a node which refers to its foreign class
+parent:
+
+  #
+  # File: test-extref.pl
+  #
+  use strict;
+  use warnings;
+
+  use YourApp::ChildObject;
+
+  my $parent = YourApp::ParentObject->loadByName("Hello Parent");
+
+  my $child = YourApp::ChildObject->new(
+    name => "Hello Again",
+    parentId => $parent->id
+  );
+
+  $child->save;
+
+=head2 One to Many
+
+Wrap ExtID assertions inside a L<Devel::Ladybug::Array> assertion
+to create a one-to-many relationship.
+
+  #
+  # File: YourApp/OneToManyExample.pm
+  #
+
+  # ...
+
+  create "YourApp::OneToManyExample" => {
+    parentIds => Devel::Ladybug::Array->assert
+      Devel::Ladybug::ExtID->assert(
+        "YourApp::ParentObject"
+      )
+    ),
+
+    # ...
+  };
+
+=head2 Many to One / One to One
+
+ExtID's default behavior is to permit many-to-one relationships
+(that is, multiple children may refer to the same parent by ID).
+To restrict this to a one-to-one relationship, include a C<unique>
+subtype argument.
+
+  #
+  # File: YourApp/OneToOneExample.pm
+  #
+
+  # ...
+
+  create "YourApp::OneToOneExample" => {
+    parentId => Devel::Ladybug::ExtID->assert(
+      "YourApp::ParentObject",
+      subtype(
+        unique => true
+      )
+    ),
+    
+    # ...
+  };
+
+=head2 Dynamic Allowed Values
 
 If a string is specified as a second argument to ExtID, it will be used
 as a SQL query, which selects a subset of Ids used as allowed values at
-runtime. If this query is not given, a flat, immutable list of Ids will
-be plugged in for allowed values at compile time.
+runtime.
 
-  create "YourApp::Example::" => {
+This is entirely an application-level constraint, and is not enforced
+by the database when manually inserting or updating rows. Careful!
+
+  create "YourApp::PickyExample" => {
     userId => Devel::Ladybug::ExtID->assert(
       "YourApp::Example::::User",
       "select id from example_user where foo = 1"
@@ -179,7 +230,32 @@ be plugged in for allowed values at compile time.
 
 =pod
 
-=back
+=head1 BUGS AND LIMITATIONS
+
+=head2 Same-table non-GUID keys
+
+Self-referential tables whose ID is not of type L<Devel::Ladybug::ID>
+should assert an appropriate column type. This is needed because at
+class creation time, Ladybug does not yet know anything about the
+ID of the class being created. This workaround is only needed for
+self-referential tables which have overridden their C<id> column.
+
+You do B<not> need to do this for externally referencing tables,
+since Ladybug will already know which column type to use. You do
+B<not> need to do this unless the C<id> assertion was overridden.
+
+
+  create "YourApp::FunkySelfRef" => {
+    id => Devel::Ladybug::Serial->assert(),
+
+    parentId => Devel::Ladybug::ExtID->assert(
+      "YourApp::FunkySelfRef",
+      subtype(
+        columnType => "INTEGER"     # <-- eg
+      )
+    ),
+
+  };
 
 =head1 SEE ALSO
 
@@ -205,7 +281,31 @@ sub assert {
     Devel::Ladybug::Type::__parseTypeArgs( Devel::Ladybug::Type::isStr,
     @rules );
 
-  $parsed{columnType} = $externalClass->asserts->{id}->columnType;
+  if ( UNIVERSAL::isa( $externalClass, "Devel::Ladybug::Object" ) ) {
+    #
+    # We already know what the foreign column type is, so just use
+    # the same type here:
+    #
+    $parsed{columnType} ||= $externalClass->asserts->{id}->columnType;
+
+  } else {
+    #
+    # If asserting a self-referential link from a table to itself,
+    # $externalClass won't exist yet, and this is a problem when
+    # it comes to magically determine the column type. The solution
+    # implemented below doesn't "just work" for self-ref ExtIDs which
+    # are referencing a type other than Devel::Ladybug::ID (eg
+    # Devel::Ladybug::Serial).
+    #
+    # As a workaround, callers should provide an explicit "columnType"
+    # subtype arg in these cases for now. I'm not sure how else to
+    # deal with this presently. This only happens for same-table ExtIDs
+    # in classes which do not use Devel::Ladybug::ID for their
+    # primary key, which is really an edge use case for Ladybug.
+    #
+    $parsed{columnType} ||= Devel::Ladybug::ID->assert->columnType;
+
+  }
 
   if ( $query && !ref $query ) {
     $parsed{allowed} = sub {
