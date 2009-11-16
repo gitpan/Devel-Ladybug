@@ -1,3 +1,6 @@
+.402
+  - Re-work fix for self-ref tables
+
 .401
   - Fix problem w/self-referential tables and add test case
   - Rewrote docs for ExtID and included several examples

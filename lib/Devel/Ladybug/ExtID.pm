@@ -281,12 +281,18 @@ sub assert {
     Devel::Ladybug::Type::__parseTypeArgs( Devel::Ladybug::Type::isStr,
     @rules );
 
+  my $asserts;
+
   if ( UNIVERSAL::isa( $externalClass, "Devel::Ladybug::Object" ) ) {
+    $asserts = $externalClass->get('ASSERTS');
+  }
+
+  if ( $asserts && $asserts->{id} ) {
     #
     # We already know what the foreign column type is, so just use
     # the same type here:
     #
-    $parsed{columnType} ||= $externalClass->asserts->{id}->columnType;
+    $parsed{columnType} ||= $asserts->{id}->columnType;
 
   } else {
     #
