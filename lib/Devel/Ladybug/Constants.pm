@@ -208,8 +208,8 @@ platforms)
 An example C<.ladybugrc> is included in the top level directory of this
 distribution as C<ladybugrc-dist>, and also given later in this
 document. Copy this file to the proper location, or just run
-C<bin/opconf> (also included with this distribution) to generate this
-for your local system and current user.
+C<ladybug-conf> (also included with this distribution) to
+generate this for your local system and current user.
 
 =head1 SECURITY
 

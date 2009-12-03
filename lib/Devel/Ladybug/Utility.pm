@@ -377,7 +377,7 @@ sub dieHandler {
 
   my ( $firstLine, $message );
 
-  if ( $type && ref($exception) && blessed($exception) ) {
+  if ( $type && UNIVERSAL::can( $exception, "stacktrace" ) ) {
 
     #
     # throw Error(message) was called:
@@ -397,8 +397,8 @@ sub dieHandler {
 
     $message =
       $longmess
-      ? Carp::longmess($exception)
-      : Carp::shortmess($exception);
+      ? Carp::longmess("$exception")
+      : Carp::shortmess("$exception");
   }
 
   my $errStr;
@@ -407,12 +407,12 @@ sub dieHandler {
     $errStr =
       $message
       ? formatErrorString($message)
-      : $exception;
+      : "$exception";
   } else {
     $errStr =
       $message
       ? join( "  ", $firstLine, formatErrorString($message) )
-      : join( "  ", $firstLine, $exception );
+      : join( "  ", $firstLine, "$exception" );
   }
 
   die "$errStr";

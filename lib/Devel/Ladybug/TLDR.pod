@@ -1,0 +1,132 @@
+=pod
+
+=head1 NAME
+
+Devel::Ladybug::TLDR - Install and use Ladybug (short version)
+
+=head1 SYNOPSIS
+
+=head2 INSTALL
+
+  perl -MCPAN -e 'install Devel::Ladybug'
+
+A compiler is needed by CPAN for dependencies.
+
+You will also need to install the DBI driver of your choice.
+
+If further guidance is needed, refer to the "INSTALLATION" section
+of the L<Devel::Ladybug> document.
+
+=head2 PREPARE RC FILE
+
+If you're comfortable with trusting Devel::Ladybug's defaults, this
+step may be skipped.
+
+Create a C<.ladybugrc> file by issuing the following command:
+
+  ladybug-conf
+
+This will open a YAML document in C<vim>. Fill in the blanks, save
+and quit. The rc file may also be created manually. C<ladybugrc-dist>
+is included with this distro as a reference, and the
+L<Devel::Ladybug::Constants> document contains further guidance.
+
+C<.ladybugrc> lives in the current user's home directory. Set the
+LADYBUG_HOME environment variable to override this.
+
+The rc file must be valid YAML.
+
+=head2 PREPARE DB
+
+If using SQLite or YAML flatfile, this step may be skipped.
+
+If using MySQL or PostgreSQL, you must create and grant access to
+your application's database and the "ladybug" database, for the
+user and database host specified in your C<.ladybugrc>. If there
+is no C<.ladybugrc>, a default username of "ladybug" with empty
+password will be used for credentials, and the database will be
+assumed to live on localhost. See L<Devel::Ladybug::Constants>.
+
+Your application's database name corresponds to its top-level
+namespace (lower cased)-- for example, YourApp::Example would need
+a database called "yourapp".
+
+If the database exists and perms are in order, Devel::Ladybug will
+automatically detect and use it as a backing store.
+
+=head2 KNOW
+
+Devel::Ladybug creates the tables that it needs, the database just
+needs to exist with proper access granted.
+
+Devel::Ladybug stores a GUID ("id", see L<Devel::Ladybug::ID>),
+"name" and creation/modify times for every object.
+
+"name" is a mandatory attribute, and each object's name must be
+unique per-class. This behavior may be overridden by re-asserting
+"name" with different subtype rules (See L<Devel::Ladybug::Name>).
+
+Devel::Ladybug always returns retrieved data in object form, but
+it's okay to use Perl's native types in setters, constructors and
+other operations.
+
+See the "FRAMEWORK ASSUMPTIONS" section in the C<Devel::Ladybug>
+document for further guidance.
+
+=head2 USE
+
+You will need to refer to C<Devel::Ladybug> and specific object
+class documentation beyond this point, but the following example
+illustrates basic usage:
+
+=head3 CLASS CREATION
+
+  #
+  # File: YourApp/Example.pm
+  #
+  use strict;
+  use warnings;
+
+  use Devel::Ladybug qw| :all |;
+
+  create "YourApp::Example" => {
+    myValue => Devel::Ladybug::Str->assert()
+  };
+
+=head3 STORAGE
+
+  #
+  # File: yoursetter
+  #
+  use strict;
+  use warnings;
+
+  use YourApp::Example;
+
+  my $ex = YourApp::Example->new(
+    name => "HelloWorld",
+    myValue => "Plz wrk, thx!"
+  );
+
+  $ex->save;
+
+=head3 RETRIEVAL
+
+  #
+  # File: yourgetter
+  #
+  use strict;
+  use warnings;
+
+  use YourApp::Example;
+
+  my $ex = YourApp::Example->loadByName("HelloWorld");
+
+  print $ex->myValue; # Plz wrk, thx!
+  print "\n";
+
+=head1 SEE ALSO
+
+This document is part of L<Devel::Ladybug>.
+
+=cut

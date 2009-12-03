@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/perl
 
 #
 # Create a new .ladybugrc and allow the user to edit it

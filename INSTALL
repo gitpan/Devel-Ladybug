@@ -1,12 +1,47 @@
-This distribution has several dependencies, and is best installed from CPAN.
+INSTALLATION
 
-  perl -MCPAN -e 'install Devel::Ladybug'
+  Ease of installation is one of Devel::Ladybug’s goals. The only build
+  requirements are a compiler ("gcc" or equivalent is needed by CPAN to
+  build a few dependencies), and a working Perl 5 (5.8.8 or greater).
+  Devel::Ladybug’s prerequisite Perl packages are handled by CPAN, and
+  generally install with no fuss. These are listed in Makefile.PL.
 
-Assuming dependencies have been installed, this may also be done manually.
+FROM CPAN (RECOMMENDED)
 
-  cd Devel-Ladybug-xxxx
-  perl Makefile.PL
-  make
-  make test
-  make install
+  The recommended way to install Devel::Ladybug is via CPAN:
+
+  perl −MCPAN −e 'install Devel::Ladybug'
+
+  Answer "yes" when prompted to install dependencies. You must (of
+  course) have permission on your local system to do so, which means you
+  either have superuser access, or your user owns the Perl install.
+
+  Devel::Ladybug does not depend on any particular DBI driver‐‐ the
+  package of your choice needs to be installed separately in order to be
+  usable by Devel::Ladybug as a backing store type. Currently supported
+  drivers are: DBD::mysql, DBD::Pg, and DBD::SQLite.
+
+FROM SOURCE
+
+  Assuming dependencies have been installed, installation may also be
+  done manually:
+
+    cd Devel−Ladybug−xxxx
+    perl Makefile.PL # Warns if system is missing prereqs
+    make test
+    make install
+
+INSTALL PROBLEMS?
+
+  The most common installation problem is due to a compiler not being
+  present on the local machine. After installing gcc, you may need to
+  purge the contents of the CPAN build directory to avoid cached failed
+  build results (e.g. ~root/.cpan/build/*), and re‐run the installation.
+
+  Refer to recent CPAN Testers results to see if Devel::Ladybug "should"
+  work with your particular software stack. Installation problems may be
+  reported to the author via email (please include the output from "make
+  test")
+
+    http://static.cpantesters.org/distro/D/Devel−Ladybug.html
 

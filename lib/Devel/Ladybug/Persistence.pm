@@ -1291,7 +1291,7 @@ sub __supportsMySQL {
     my $dsn = sprintf( 'DBI:mysql:database=%s;host=%s;port=%s',
       $dbname, dbHost, dbPort || 3306 );
 
-    my $dbh = DBI->connect( $dsn, $dbname, '', { RaiseError => 1 } )
+    my $dbh = DBI->connect( $dsn, dbUser, dbPass, { RaiseError => 1 } )
       || die DBI->errstr;
 
     my $sth = $dbh->prepare("show tables") || die $dbh->errstr;
@@ -1315,7 +1315,7 @@ sub __supportsPostgreSQL {
     my $dsn = sprintf( 'DBI:Pg:database=%s;host=%s;port=%s',
       $dbname, dbHost, dbPort || 5432 );
 
-    my $dbh = DBI->connect( $dsn, $dbname, '', { RaiseError => 1 } )
+    my $dbh = DBI->connect( $dsn, dbUser, dbPass, { RaiseError => 1 } )
       || die DBI->errstr;
 
     my $sth =

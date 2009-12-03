@@ -4,6 +4,7 @@ bin/ladybug-dump
 Changes
 cpl1.0.txt
 INSTALL
+lib/Devel/Ladybug/TLDR.pod
 lib/Devel/Ladybug/Array.pm
 lib/Devel/Ladybug/Bool.pm
 lib/Devel/Ladybug/Class/Dumper.pm

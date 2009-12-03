@@ -1,5 +1,7 @@
 use ExtUtils::MakeMaker;
 
+require 5.008_008;
+
 my $prereqs = {
   Cache::Memcached::Fast => 0.16,
   Clone                  => 0.31,
@@ -8,7 +10,7 @@ my $prereqs = {
   Error                  => 0.17015,
   File::HomeDir          => 0.86,
   File::Tempdir          => 0.02,
-  GlobalDBI              => 0.21,
+  GlobalDBI              => 0.22,
   Math::VecStat          => 0.08,
   Rcs                    => 1.05,
   Test::Simple           => 0.94,

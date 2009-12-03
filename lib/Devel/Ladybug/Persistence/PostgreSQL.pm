@@ -21,8 +21,11 @@ PostgreSQL
 
 Enables the PostgreSQL backing store.
 
-When using PostgreSQL, you must create and grant access to your
-application's database and the "ladybug" database prior to use.
+If using PostgreSQL, you must create and grant access to your
+application's database and the "ladybug" database, for the user
+specified in your C<ladybugrc>. If there is no ladybugrc, a default
+username of "ladybug" with empty password will be used for credentials.
+See L<Devel::Ladybug::Constants>.
 
 =head1 FUNCTION
 
