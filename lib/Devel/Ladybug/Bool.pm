@@ -21,25 +21,31 @@ Extends L<Devel::Ladybug::Num>.
 
 =head1 SYNOPSIS
 
-  use Devel::Ladybug::Bool;
+  #
+  # File: YourApp/Example.pm
+  #
+  use Devel::Ladybug qw| :all |;
 
-  my $bool = Devel::Ladybug::Bool->new($condition ? Devel::Ladybug::Bool::true : Devel::Ladybug::Bool::false);
+  create "YourApp::Example" => {
+    myBool => Devel::Ladybug::Bool->assert()
 
-  if ( $bool ) {
-    print "It's true!\n";
+    # ...
+  };
+
+  #
+  # File: somecaller.pl
+  #
+  use YourApp::Example;
+
+  my $ex = YourApp::Example->new(...);
+
+  if ( $ex->myBool ) {
+    print "True\n";
   } else {
-    print "Clearly false.\n";
+    print "False\n";
   }
 
-These methods are silly, but they exist.
-
-  if ( $bool->isTrue() ) {
-    print "That's affirmative\n";
-  }
-
-  if ( $bool->isFalse() ) {
-    print "Negative on that, Houston\n";
-  }
+  $ex->setMyBool(true);
 
 =head1 SEE ALSO
 

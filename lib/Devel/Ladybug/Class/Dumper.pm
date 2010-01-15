@@ -114,7 +114,7 @@ C<__baseAsserts()> may be overridden as a C<sub{}> or as a class variable.
 Using a C<sub{}> lets you extend the parent class's base asserts, or use
 any other Perl operation to derive the appropriate values:
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Inherit parent class's base asserts, tack on "foo"
     #
@@ -134,7 +134,7 @@ any other Perl operation to derive the appropriate values:
 One may alternately use a class variable to redefine base asserts,
 overriding the parent:
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Statically assert two base attributes, "id" and "name"
     #

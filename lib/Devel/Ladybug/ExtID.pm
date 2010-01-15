@@ -208,7 +208,7 @@ by the database when manually inserting or updating rows. Careful!
 
   create "YourApp::PickyExample" => {
     userId => Devel::Ladybug::ExtID->assert(
-      "YourApp::Example::::User",
+      "YourApp::Example::User",
       "select id from example_user where foo = 1"
     ),
 

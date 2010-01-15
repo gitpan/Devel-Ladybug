@@ -111,7 +111,7 @@ values at insertion time.
 C<::sqlInsertValue> and C<::sqlUpdateValue> override any provided value
 for ::sqlValue, but only on INSERT and UPDATE statements, respectively.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     foo => Devel::Ladybug::Int->assert(...,
       subtype(
         sqlValue => "(coalesce(max(foo),-1)+1)",
@@ -125,7 +125,7 @@ for ::sqlValue, but only on INSERT and UPDATE statements, respectively.
 
 Specify UNIQUE database table columns.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Your must either specify true or false...
     #

@@ -1,3 +1,11 @@
+.404
+  - Update documentation for usage under mod_perl (thx rrose)
+  - Use default memcached port by uh, default.
+  - Remove Time::Piece as dependency
+  - MySQL reference options: onDelete and onUpdate renamed to
+    deleteRefOpt and updateRefOpt
+  - Lots of perldoc revisions and fixes
+
 .403
   - Modify die() handler to not hork on non-Error objects
   - Require 5.8.8+ in Makefile.PL and Ladybug.pm

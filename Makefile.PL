@@ -14,7 +14,6 @@ my $prereqs = {
   Math::VecStat          => 0.08,
   Rcs                    => 1.05,
   Test::Simple           => 0.94,
-  Time::Piece            => 1.12, # CPAN won't remove Darwin's older version?
   Unicode::String        => 2.09,
   URI                    => 1.40,
   YAML::Syck             => 1.07,

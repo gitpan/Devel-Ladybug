@@ -14,11 +14,8 @@ use strict;
 use warnings;
 
 use Devel::Ladybug::Class qw| true false |;
-use Devel::Ladybug::Num;
 
-use Time::Seconds;
-
-use base qw| Time::Seconds Devel::Ladybug::Scalar |;
+use base qw| Devel::Ladybug::Float |;
 
 use overload
   fallback => true,
@@ -75,7 +72,7 @@ Devel::Ladybug::TimeSpan - Time range object class
 
 =head1 DESCRIPTION
 
-Extends L<Devel::Ladybug::Object>, L<Time::Seconds>.
+Extends L<Devel::Ladybug::Float>.
 
 Stringifies as number of seconds unless overridden.
 
@@ -88,7 +85,7 @@ Stringifies as number of seconds unless overridden.
 Returns a new Devel::Ladybug::Type::TimeSpan instance which
 encapsulates the received L<Devel::Ladybug::Subtype> rules.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     someTime  => Devel::Ladybug::TimeSpan->assert(...),
 
     # ...
@@ -104,9 +101,6 @@ received value.
 =back
 
 =head1 SEE ALSO
-
-See the L<Time::Seconds> module for time formatting and manipulation
-methods inherited by this class.
 
 This file is part of L<Devel::Ladybug>.
 

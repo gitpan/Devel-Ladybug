@@ -211,8 +211,8 @@ sub __schema {
 
           my $foreignClass = $type->memberClass();
 
-          my $deleteRefOpt = $type->onDelete() || 'RESTRICT';
-          my $updateRefOpt = $type->onUpdate() || 'CASCADE';
+          my $deleteRefOpt = $type->deleteRefOpt() || 'RESTRICT';
+          my $updateRefOpt = $type->updateRefOpt() || 'CASCADE';
 
           my $template = join( "\n",
             '  FOREIGN KEY (%s) REFERENCES %s (%s)',

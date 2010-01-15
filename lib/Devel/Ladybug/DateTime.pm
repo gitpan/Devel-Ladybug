@@ -9,38 +9,16 @@
 # http://opensource.org/licenses/cpl1.0.txt
 #
 
-#
-# Time::Piece overrides localtime/gmtime in caller, which breaks assumptions
-#
-# Override Time::Piece to not override:
-#
 package Devel::Ladybug::DateTime;
 
 use strict;
 use warnings;
 
-do {
-
-  package Time::Piece::Nonpolluting;
-
-  use strict;
-  use warnings;
-
-  use base qw| Time::Piece |;
-
-  our @EXPORT = qw| |;
-
-  sub import { }
-
-  sub export { }
-};
-
 use Devel::Ladybug::Class qw| true false |;
-use Devel::Ladybug::Num;
 use Scalar::Util qw| blessed |;
 use Time::Local;
 
-use base qw| Time::Piece::Nonpolluting Devel::Ladybug::Array |;
+use base qw| Devel::Ladybug::Float |;
 
 use overload
   %Devel::Ladybug::Num::overload,
@@ -62,8 +40,7 @@ sub assert {
         $time = $class->newFrom( $1, $2, $3, $4, $5, $6 );
       }
 
-      UNIVERSAL::isa( $time, "Time::Piece" )
-        || Scalar::Util::looks_like_number($time)
+      Scalar::Util::looks_like_number("$time")
         || Devel::Ladybug::AssertFailed->throw(
         "Received value is not a time");
     },
@@ -100,7 +77,7 @@ sub new {
 
   Devel::Ladybug::Type::insist( $epoch, Devel::Ladybug::Type::isFloat );
 
-  my $self = Time::Piece::Nonpolluting->new($epoch);
+  my $self = \$epoch;
 
   return bless $self, $class;
 }
@@ -123,10 +100,7 @@ sub newFrom {
 }
 
 #
-# Allow comparison of DateTime, Time::Piece, overloaded scalar,
-# and raw number values.
-#
-# Overload is retarded for sometimes reversing these, what the actual hell
+# Allow comparison of overloaded objects and native types
 #
 sub _compare {
   my $date1 = $_[2] ? $_[1] : $_[0];
@@ -140,30 +114,17 @@ sub _compare {
     $date2 = $date2->epoch();
   }
 
-  return $date1 <=> $date2;
+  $date1 ||= 0;
+  $date2 ||= 0;
+
+  return "$date1" <=> "$date2";
 }
 
 sub _sprint {
-  return shift->epoch();
-}
-
-#
-# Deny all knowledge of being Devel::Ladybug::Array-like.
-#
-# DateTime wants to be treated like a scalar when it comes to just about
-# everything.
-#
-sub isa {
-  my $recv = shift;
-  my $what = shift;
-
-  return false if $what eq 'Devel::Ladybug::Array';
-
-  return UNIVERSAL::isa( $recv, $what );
+  return shift->value();
 }
 
 true;
-
 __END__
 
 =pod
@@ -188,7 +149,7 @@ From YYYY MM DD hh mm ss:
 
 Time object.
 
-Extends L<Devel::Ladybug::Object>, L<Time::Piece>. Overloaded for
+Extends L<Devel::Ladybug::Float>. Overloaded for
 numeric comparisons, stringifies as unix epoch seconds unless
 overridden.
 
@@ -210,7 +171,7 @@ To use DATETIME as the column type, specify it as the value to the
 C<columnType> subtype arg. When using a DATETIME column, Devel::Ladybug
 will automatically ask the database to handle any necessary conversion.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     someTimestamp  => Devel::Ladybug::DateTime->assert(
       subtype(
         columnType => "DATETIME",
@@ -230,9 +191,6 @@ received value.
 =back
 
 =head1 SEE ALSO
-
-See the L<Time::Piece> module for time formatting and manipulation
-methods inherited by this class.
 
 This file is part of L<Devel::Ladybug>.
 

@@ -14,20 +14,40 @@ package Devel::Ladybug::Type;
 
 =head1 NAME
 
-B<Devel::Ladybug::Type> - Type definitions for
-L<Devel::Ladybug::Object> subclass instances
+B<Devel::Ladybug::Type> - L<Devel::Ladybug::Object> data type assertions
+
+=head1 SYNOPSIS
+
+Typing rules for instance variables are asserted in class prototypes, as
+inline keys:
+
+  use Devel::Ladybug qw| :all |;
+
+  create "YourApp::Example" => {
+    #
+    # Instance variable "foo" will contain optional string data:
+    #
+    foo => Devel::Ladybug::Str->assert(
+      subtype(
+        optional => true
+      )
+    ),
+
+    ...
+  };
+
+More examples can be found in the L<Devel::Ladybug::Class> and
+L<Devel::Ladybug::Subtype> modules, and in the documentation for
+specific object classes.
 
 =head1 DESCRIPTION
 
-A Type describes the parameters which an L<Devel::Ladybug::Object>
-instance variable and/or database table column must conform to, and
-does so in a detailed and compact form. The Devel::Ladybug::Type class
-also provides methods for strict runtime testing and enforcement of
-asserted values.
+Devel::Ladybug::Type subclasses describe rules which
+L<Devel::Ladybug::Object> instance variables must conform to.
 
-If a caller tries to do something contrary to a Type, Devel::Ladybug
-will throw an exception, which causes an exit unless caught using
-C<eval>/C<$@> or C<try>/C<catch> (see L<Error>).
+If a caller tries to do something contrary to a Type assertion,
+Devel::Ladybug will throw an exception, which causes an exit unless
+caught using C<eval>/C<$@> or C<try>/C<catch> (see L<Error>).
 
 =head2 Dynamic Subclasses
 
@@ -40,30 +60,10 @@ L<Devel::Ladybug::Subtype> for more details and a list of these rule
 types. Subtype subclasses are allocated from the definitions found in
 the %Devel::Ladybug::Type::RULES package variable.
 
-=head1 SYNOPSIS
-
-Typing rules for instance variables are asserted in class prototypes as
-inline keys:
-
-  use Devel::Ladybug qw| :all |;
-
-  create "YourApp::Example::" => {
-    #
-    # Instance variable "foo" will contain optional string data:
-    #
-    foo => Devel::Ladybug::Str->assert(...),
-
-    ...
-  };
-
-More examples can be found in the L<Devel::Ladybug::Class> and
-L<Devel::Ladybug::Subtype> modules, and in the documentation for
-specific object classes.
+=head1 TEST SUBS
 
 The remainder of this doc contains information which is generally only
 useful if hacking on core Devel::Ladybug internals.
-
-=head1 TEST SUBS
 
 These subs are defined as package constants, and are used internally by
 Devel::Ladybug. These subs are not for general usage, but for coding
@@ -71,7 +71,7 @@ Devel::Ladybug internals.
 
 Each returns a CODE block which may be used to validate data types.
 
-When executed, the test subs throw an C<Devel::Ladybug::AssertFailed>
+When executed, the test subs throw a C<Devel::Ladybug::AssertFailed>
 exception on validation failure, and return C<true> on success.
 
 =over 4
@@ -157,7 +157,6 @@ use base
 
 our @EXPORT_OK = qw| subtype |;
 
-# sub insist($value, Code $code) { &$code($value) }
 sub insist {
   my $value = shift;
   my $code  = shift;
@@ -165,7 +164,6 @@ sub insist {
   return &$code($value);
 }
 
-# sub member(Str $key, Devel::Ladybug::Type $type) {
 sub member {
   my $key  = shift;
   my $type = shift;
@@ -181,7 +179,6 @@ sub member {
   return true;
 }
 
-# use constant isStr => sub(Str $value) {
 use constant isStr => sub {
   my $value = shift;
 
@@ -198,7 +195,6 @@ use constant isStr => sub {
   return true;
 };
 
-# use constant isFloat => sub(Num $value) {
 use constant isFloat => sub {
   my $value = shift;
 
@@ -327,28 +323,27 @@ Instantiate a new Devel::Ladybug::Type object.
 Consumed args are as follows:
 
   my $type = Devel::Ladybug::Type::MyType->new(
-    code       => ..., # CODE ref to test with
-    allowed    => ..., # ARRAY ref of allowed vals
-    default    => ..., # Literal default value
-    columnType => ..., # Override column type string
-    sqlValue   => ..., # Override SQL insert value
-    unique     => ..., # true|false
-    optional   => ..., # true|false
-    serial     => ..., # true|false
-    min        => ..., # min numeric value
-    max        => ..., # max numeric value
-    size       => ..., # fixed length or scalar size
-    minSize    => ..., # min length or scalar size
-    maxSize    => ..., # max length or scalar size
-    regex      => ..., # optional regex which value must match
-    memberType => ..., # Sub-assertion for arrays
+    code         => ..., # CODE ref to test with
+    allowed      => ..., # ARRAY ref of allowed vals
+    default      => ..., # Literal default value
+    columnType   => ..., # Override column type string
+    sqlValue     => ..., # Override SQL insert value
+    unique       => ..., # true|false
+    optional     => ..., # true|false
+    serial       => ..., # true|false
+    min          => ..., # min numeric value
+    max          => ..., # max numeric value
+    size         => ..., # fixed length or scalar size
+    minSize      => ..., # min length or scalar size
+    maxSize      => ..., # max length or scalar size
+    regex        => ..., # optional regex which value must match
+    memberType   => ..., # Sub-assertion for arrays
     memberClass  => ..., # Name of inline or external class
-    uom        => ..., # String label for human reference
-    descript   => ..., # Human-readable description
-    example    => ..., # An example value for human reference
-    onDelete   => ..., # MySQL foreign constraint reference option
-    onUpdate   => ..., # MySQL foreign constraint reference option
-    
+    uom          => ..., # String label for human reference
+    descript     => ..., # Human-readable description
+    example      => ..., # An example value for human reference
+    deleteRefOpt => ..., # MySQL foreign constraint reference option
+    updateRefOpt => ..., # MySQL foreign constraint reference option
   );
 
 =back
@@ -749,21 +744,18 @@ sub test {
 #
 our %RULES = (
 
-  # max => sub(Num $value) {
   max => sub {
     my $value = shift;
 
     insist( $value, isFloat ) && return $value;
   },
 
-  # columnType => sub(Str $value) {
   columnType => sub {
     my $value = shift;
 
     insist( $value, isStr ) && return uc($value);
   },
 
-  # default => sub(*@value) {
   default => sub {
     my @value = @_;
 
@@ -776,35 +768,30 @@ our %RULES = (
     }
   },
 
-  # descript => sub(Str $value) {
   descript => sub {
     my $value = shift;
 
     insist( $value, isStr ) && return $value;
   },
 
-  # example => sub(Str $value) {
   example => sub {
     my $value = shift;
 
     insist( $value, isStr ) && return $value;
   },
 
-  # min => sub(Num $value) {
   min => sub {
     my $value = shift;
 
     insist( $value, isFloat ) && return $value;
   },
 
-  # maxSize => sub(Int $value) {
   maxSize => sub {
     my $value = shift;
 
     insist( $value, isInt ) && return $value;
   },
 
-  # minSize => sub(Int $value) {
   minSize => sub {
     my $value = shift;
 
@@ -812,7 +799,6 @@ our %RULES = (
   },
 
   # CASCADE, SET NULL, etc
-  # onDelete => sub(Str $value) {
   onDelete => sub {
     my $value = shift;
 
@@ -827,8 +813,7 @@ our %RULES = (
     return uc($value);
   },
 
-  # onUpdate => sub(Str $value) {
-  onUpdate => sub {
+  updateRefOpt => sub {
     my $value = shift;
 
     insist( $value, isStr )
@@ -842,7 +827,6 @@ our %RULES = (
     return uc($value);
   },
 
-  # optional => sub() {
   optional => sub {
     throw Devel::Ladybug::InvalidArgument(
       "Extra arguments received by optional()")
@@ -851,7 +835,6 @@ our %RULES = (
     return $_[0] ? true : false;
   },
 
-  # regex => sub(Rule $regex) {
   regex => sub {
     my $regex = shift;
 
@@ -866,35 +849,30 @@ our %RULES = (
     return $_[0] ? true : false;
   },
 
-  # size => sub(Int $value) {
   size => sub {
     my $value = shift;
 
     insist( $value, isInt ) && return $value;
   },
 
-  # sqlValue => sub(Str $value) {
   sqlValue => sub {
     my $value = shift;
 
     insist( $value, isStr ) && return $value;
   },
 
-  # sqlInsertValue => sub(Str $value) {
   sqlInsertValue => sub {
     my $value = shift;
 
     insist( $value, isStr ) && return $value;
   },
 
-  # sqlUpdateValue => sub(Str $value) {
   sqlUpdateValue => sub {
     my $value = shift;
 
     insist( $value, isStr ) && return $value;
   },
 
-  # unique => sub(?$value) {
   unique => sub {
     my $value = shift;
 
@@ -934,7 +912,6 @@ our %RULES = (
     return $value;
   },
 
-  # uom => sub(Str $value) {
   uom => sub {
     my $value = shift;
 
@@ -980,7 +957,6 @@ for ( keys %RULES ) {
 # Helper function so Str, Int, and Float don't have
 # to repeat this bit of code:
 #
-# sub __parseTypeArgs(Code $testSub, *@args) {
 sub __parseTypeArgs {
   my $testSub = shift;
   my @args    = @_;

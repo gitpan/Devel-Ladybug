@@ -11,7 +11,7 @@
 
 package Devel::Ladybug;
 
-our $VERSION = '0.403';
+our $VERSION = '0.404';
 
 use strict;
 use diagnostics;
@@ -119,7 +119,7 @@ L<Devel::Ladybug::TLDR>.
 
 =head1 VERSION
 
-This documentation is for version B<0.403> of Devel::Ladybug.
+This documentation is for version B<0.404> of Devel::Ladybug.
 
 =head1 FRAMEWORK ASSUMPTIONS
 
@@ -192,8 +192,8 @@ Devel::Ladybug may use a different name in a future version.
 Undefined values in objects translate to NULL in the database, and
 Devel::Ladybug does not permit this to happen by default.
 
-Instance variables may not be undef, (and the corresponding table
-column may not be NULL), unless the instance variable was explicitly
+Instance variables may not be undef, and the corresponding table
+column may not be NULL, unless the instance variable was explicitly
 asserted as B<optional> in the class prototype. To do so, provide
 "optional" as an assertion argument, as in the following example:
 
@@ -221,7 +221,7 @@ class method C<databaseName>.
 
 Namespace elements beyond the top-level translate to lower case table
 names. In cases of nested namespaces, Perl's "::" delineator is swapped
-out for an underscore (_). The table name may be overriden by
+out for an underscore (_). The table name may be overridden by
 implementing class method C<tableName>.
 
   create "YourApp::Example::Foo" => {
@@ -524,7 +524,7 @@ For example, in a file C<startup.pl>:
     #
     # Directory with the .ladybugrc:
     #
-    $ENV{LADYBUG_HOME} = '/home/user/dave';
+    $ENV{LADYBUG_HOME} = '/your/ladybug/home';
   }
 
   use YourApp::Component;
@@ -532,9 +532,17 @@ For example, in a file C<startup.pl>:
 
   1;
 
-And in your C<httpd.conf>:
+The startup script should be specified in httpd.conf. Additionally,
+you may need to include a B<PerlSetEnv> directive, for example:
 
   PerlRequire /path/to/your/startup.pl
+
+  <LocationMatch "/.*\.html$">
+    SetHandler perl-script
+
+    PerlHandler HTML::Mason::ApacheHandler
+    PerlSetEnv LADYBUG_HOME /your/ladybug/home
+  </LocationMatch>
 
 =head1 INSTALLATION
 

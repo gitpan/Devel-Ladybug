@@ -152,7 +152,7 @@ sub new {
 
 Return a new Devel::Ladybug::Type::Array instance.
 
-To permit multiple values of a given type, just wrap an C<Array()>
+To permit multiple values of a given type, just wrap an Array
 assertion around any other assertion.
 
 Each element in the stored array lives in a dynamically subclassed
@@ -164,7 +164,7 @@ linked table, with foreign key constraints against the parent table.
 
   use Devel::Ladybug qw| :all |;
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # An array of strings:
     #
@@ -185,17 +185,16 @@ In Caller:
   use strict;
   use warnings;
 
-  use YourApp::Example::;
+  use YourApp::Example;
 
-  my $exa = YourApp::Example::->spawn("Array Example");
+  my $exa = YourApp::Example->spawn("Array Example");
 
   $exa->setSomeArr("Foo", "Bar", "Rebar", "D-bar");
 
   $exa->save();
 
-B<Nested Arrays:> C<Array()> can be wrapped around other C<Array()>
-assertions, for cases where multi-dimensional arrays are needed. Each
-assertion has independent rules:
+B<Nested Arrays:> At the cost of performance, array assertions may
+be nested. Each assert has independent rules:
 
   #
   # File: Example.pm
@@ -203,7 +202,7 @@ assertion has independent rules:
 
   use Devel::Ladybug qw| :all |;
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Fancy... a 3x3 matrix of integers with per-element enforcement of
     # min and max values:
@@ -236,9 +235,9 @@ In caller:
   use strict;
   use warnings;
 
-  use YourApp::Example::;
+  use YourApp::Example;
 
-  my $example = YourApp::Example::->spawn("Matrix Example");
+  my $example = YourApp::Example->spawn("Matrix Example");
 
   #
   # Data looks like this:

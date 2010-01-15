@@ -34,7 +34,7 @@ dbHost: localhost
 dbPort: ~
 dbUser: ladybug
 memcachedHosts: 
-  - 127.0.0.1:31337
+  - 127.0.0.1:11211
 rcsBindir: /usr/bin
 rcsDir: RCS
 scratchRoot: $path/scratch

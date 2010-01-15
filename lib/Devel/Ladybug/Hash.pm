@@ -57,7 +57,7 @@ Devel::Ladybug::Hash
 
 =item * $class->assert(*@rules)
 
-Returns an Devel::Ladybug::Type::Hash instance encapsulating the
+Returns a Devel::Ladybug::Type::Hash instance encapsulating the
 received subtyping rules.
 
 Really, don't do this. If you think you need to assert a Hash, please

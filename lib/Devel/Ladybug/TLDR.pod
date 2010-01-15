@@ -75,7 +75,7 @@ document for further guidance.
 
 =head2 USE
 
-You will need to refer to C<Devel::Ladybug> and specific object
+You will need to refer to L<Devel::Ladybug> and specific object
 class documentation beyond this point, but the following example
 illustrates basic usage:
 

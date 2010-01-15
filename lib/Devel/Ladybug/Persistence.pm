@@ -352,7 +352,7 @@ sub __selectMulti {
 
 =item * $class->allIds()
 
-Returns an Devel::Ladybug::Array of all object ids in the receiving
+Returns a Devel::Ladybug::Array of all object ids in the receiving
 class.
 
   my $ids = $class->allIds();
@@ -760,7 +760,7 @@ sub tableName {
 
 =item * $class->columnNames()
 
-Returns an Devel::Ladybug::Array of all column names in the receiving
+Returns a Devel::Ladybug::Array of all column names in the receiving
 class's table.
 
 This will be the same as the list returned by attributes(), minus any
@@ -2353,7 +2353,7 @@ sub __serialType {
 
 =item * $class->__updateColumnNames();
 
-Returns an Devel::Ladybug::Array of the column names to include with
+Returns a Devel::Ladybug::Array of the column names to include with
 UPDATE statements.
 
 =cut
@@ -2368,7 +2368,7 @@ sub __updateColumnNames {
 
 =item * $class->__selectColumnNames();
 
-Returns an Devel::Ladybug::Array of the column names to include with
+Returns a Devel::Ladybug::Array of the column names to include with
 SELECT statements.
 
 =cut
@@ -2383,7 +2383,7 @@ sub __selectColumnNames {
 
 =item * $class->__insertColumnNames();
 
-Returns an Devel::Ladybug::Array of the column names to include with
+Returns a Devel::Ladybug::Array of the column names to include with
 INSERT statements.
 
 =cut
@@ -2936,7 +2936,7 @@ sub key {
 
 Only applicable for attributes which were asserted as C<ExtID()>.
 
-Returns an Devel::Ladybug::Array of objects referenced by the named
+Returns a Devel::Ladybug::Array of objects referenced by the named
 attribute.
 
 Equivalent to using C<load()> on the class returned by class method

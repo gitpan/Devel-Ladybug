@@ -312,10 +312,12 @@ Devel::Ladybug::Class - Root-level "Class" class
   #
   # File: lib/Devel/Ladybug/Example.pm
   #
+  use strict;
+  use warnings;
 
   use Devel::Ladybug qw| :all |;
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # This is an empty class prototype
     #
@@ -326,22 +328,24 @@ Devel::Ladybug::Class - Root-level "Class" class
   #
   # File: testscript.pl
   #
-
   use strict;
   use warnings;
 
-  use YourApp::Example::;
+  use YourApp::Example;
 
-  my $exa = YourApp::Example::->new();
+  my $exa = YourApp::Example->new();
 
-  $exa->setName("My First Devel::Ladybug Object");
+  $exa->setName("Hello World");
 
-  $exa->save("This is a checkin comment");
+  # This would also work:
+  # $exa->set("name", "Hello World");
+  #
+  # or, just:
+  # my $exa = YourApp::Example->new(name=>"Hello World");
 
-  say "Saved object:";
+  $exa->save();
 
   $exa->print();
-
 
 =head1 DESCRIPTION
 
@@ -359,7 +363,7 @@ and also provides the class prototyping function C<create()>.
 
 Get the named class variable
 
-  my $class = "YourApp::Example::";
+  my $class = "YourApp::Example";
 
   my $scalar = $class->get($key);
 
@@ -372,7 +376,7 @@ Get the named class variable
 
 Set the named class variable to the received value
 
-  my $class = "YourApp::Example::";
+  my $class = "YourApp::Example";
 
   $class->set($key, $scalar);
 
@@ -385,7 +389,7 @@ Set the named class variable to the received value
 
 Transform camelCase to Not Camel Case
 
-  my $class = "YourApp::Example::";
+  my $class = "YourApp::Example";
 
   my $uglyStr = "betterGetThatLookedAt";
 
@@ -400,7 +404,7 @@ Return an array ref of all messages supported by this class.
 
 Does not include messages from superclasses.
 
-  my $members = YourApp::Example::->members();
+  my $members = YourApp::Example->members();
 
 
 =item * C<membersHash(Devel::Ladybug::Class $class:)>
@@ -411,7 +415,7 @@ Return a hash ref of all messages supported by this class.
 
 Does not include messages from superclasses.
 
-  my $membersHash = YourApp::Example::->membersHash();
+  my $membersHash = YourApp::Example->membersHash();
 
 
 =back
@@ -446,9 +450,9 @@ C<create()>.
   use Devel::Ladybug qw| :all |;
 
   #
-  # The class name will be "YourApp::Example::":
+  # The class name will be "YourApp::Example":
   #
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
 
   };
 
@@ -458,7 +462,7 @@ A B<class prototype> is a hash describing all fundamental
 characteristics of an object class. It's the second argument sent to
 C<create()>.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # This is an empty prototype (perfectly valid)
     #
@@ -496,7 +500,7 @@ Instance methods are declared as keys in the class prototype. The name
 of the method is the key, and its value in the prototype is a Perl 5
 C<sub{}>.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Add a public instance method, $self->handleFoo()
     #
@@ -510,7 +514,7 @@ C<sub{}>.
     }
   }
 
-  my $exa = YourApp::Example::->new();
+  my $exa = YourApp::Example->new();
 
   $exa->setFoo("Bar");
 
@@ -525,7 +529,7 @@ C<sub{}>.
 The Devel::Ladybug convention for private or protected instance methods
 is to prefix them with a single underscore.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # private instance method
     #
@@ -544,7 +548,7 @@ prototype is the literal value to be used for the class variable.
 
   use Devel::Ladybug qw| :all |;
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Override a few class variables
     #
@@ -560,7 +564,7 @@ in list context.
 Class methods are declared in the same manner as instance methods. The
 only difference is that the class will be the receiver.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Add a public class method
     #
@@ -575,7 +579,7 @@ only difference is that the class will be the receiver.
 The Devel::Ladybug convention for private or protected class methods is
 to prefix them with double underscores.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Override a private class method
     #
@@ -592,7 +596,7 @@ By default, classes created with C<create()> inherit from
 L<Devel::Ladybug::Node>. To override this, include a C<__BASE__>
 attribute, specifying the parent class name.
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     #
     # Override parent class
     #
@@ -631,7 +635,7 @@ in.
 
   use Devel::Ladybug qw| :all |;
 
-  create "YourApp::Example::" => {
+  create "YourApp::Example" => {
     __someClassVar => true,
 
     someInstanceVar => Devel::Ladybug::Str->assert(),
