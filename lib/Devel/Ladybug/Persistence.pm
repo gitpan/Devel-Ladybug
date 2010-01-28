@@ -67,9 +67,6 @@ use Devel::Ladybug::Constants qw|
 use Devel::Ladybug::Enum::DBIType;
 use Devel::Ladybug::Exceptions;
 use Devel::Ladybug::Utility;
-use Devel::Ladybug::Persistence::MySQL;
-use Devel::Ladybug::Persistence::SQLite;
-use Devel::Ladybug::Persistence::PostgreSQL;
 
 #
 # Devel::Ladybug Object Classes
@@ -758,25 +755,6 @@ sub tableName {
 
 =pod
 
-=item * $class->columnNames()
-
-Returns a Devel::Ladybug::Array of all column names in the receiving
-class's table.
-
-This will be the same as the list returned by attributes(), minus any
-attributes which were asserted as Array or Hash and therefore live in a
-seperate linked table.
-
-=cut
-
-sub columnNames {
-  my $class = shift;
-
-  return $class->__dispatch('columnNames');
-}
-
-=pod
-
 =item * $class->elementClass($key);
 
 Returns the dynamic subclass used for an Array or Hash attribute.
@@ -963,6 +941,7 @@ sub restore {
   return $self->revert($version);
 }
 
+
 =pod
 
 =back
@@ -1020,7 +999,7 @@ sub __useYaml {
   my $useYaml = $class->get("__useYaml");
 
   if ( !defined $useYaml ) {
-    my %args = __autoArgs();
+    my %args = $class->__autoArgs();
 
     $useYaml = $args{"__useYaml"};
 
@@ -1131,7 +1110,7 @@ sub __useDbi {
   my $useDbi = $class->get("__useDbi");
 
   if ( !defined($useDbi) ) {
-    my %args = __autoArgs();
+    my %args = $class->__autoArgs();
 
     $useDbi = $args{__useDbi};
 
@@ -1139,22 +1118,6 @@ sub __useDbi {
   }
 
   return $useDbi;
-}
-
-=pod
-
-=item * $class->__useForeignKeys()
-
-Returns a true value if the SQL schema should include foreign key
-constraints where applicable. Default is appropriate for the chosen DBI
-type.
-
-=cut
-
-sub __useForeignKeys {
-  my $class = shift;
-
-  return $class->__dispatch('__useForeignKeys');
 }
 
 =pod
@@ -1229,7 +1192,7 @@ sub __dbiType {
   my $type = $class->get("__dbiType");
 
   if ( !defined($type) ) {
-    my %args = __autoArgs();
+    my %args = $class->__autoArgs();
 
     $type = $args{__dbiType};
 
@@ -1242,24 +1205,26 @@ sub __dbiType {
 my %createArgs;
 
 sub __autoArgs {
+  my $class = shift;
+
   return %createArgs if %createArgs;
 
   $createArgs{__useDbi}  = false;
   $createArgs{__useYaml} = true;
   $createArgs{__dbiType} = Devel::Ladybug::Enum::DBIType::SQLite;
 
-  if ( __supportsSQLite() ) {
+  if ( $class->__supportsSQLite() ) {
     $createArgs{__useDbi}  = true;
     $createArgs{__useYaml} = false;
   }
 
-  if ( __supportsPostgreSQL() ) {
+  if ( $class->__supportsPostgreSQL() ) {
     $createArgs{__useDbi}  = true;
     $createArgs{__useYaml} = false;
     $createArgs{__dbiType} = Devel::Ladybug::Enum::DBIType::PostgreSQL;
   }
 
-  if ( __supportsMySQL() ) {
+  if ( $class->__supportsMySQL() ) {
     $createArgs{__useDbi}  = true;
     $createArgs{__useYaml} = false;
     $createArgs{__dbiType} = Devel::Ladybug::Enum::DBIType::MySQL;
@@ -1269,6 +1234,8 @@ sub __autoArgs {
 }
 
 sub __supportsSQLite {
+  my $class = shift;
+
   my $worked;
 
   eval {
@@ -1281,18 +1248,21 @@ sub __supportsSQLite {
 }
 
 sub __supportsMySQL {
+  my $class = shift;
+
   my $worked;
 
   eval {
     require DBD::mysql;
 
-    my $dbname = 'ladybug';
+    my $dbname = $class->databaseName;
 
     my $dsn = sprintf( 'DBI:mysql:database=%s;host=%s;port=%s',
-      $dbname, dbHost, dbPort || 3306 );
+      $dbname, $class->__dbHost, $class->__dbPort || 3306 );
 
-    my $dbh = DBI->connect( $dsn, dbUser, dbPass, { RaiseError => 1 } )
-      || die DBI->errstr;
+    my $dbh = DBI->connect(
+      $dsn, $class->__dbUser, $class->__dbPass, { RaiseError => 1 }
+    ) || die DBI->errstr;
 
     my $sth = $dbh->prepare("show tables") || die $dbh->errstr;
     $sth->execute || die $sth->errstr;
@@ -1305,18 +1275,21 @@ sub __supportsMySQL {
 }
 
 sub __supportsPostgreSQL {
+  my $class = shift;
+
   my $worked;
 
   eval {
     require DBD::Pg;
 
-    my $dbname = 'ladybug';
+    my $dbname = $class->databaseName;
 
     my $dsn = sprintf( 'DBI:Pg:database=%s;host=%s;port=%s',
-      $dbname, dbHost, dbPort || 5432 );
+      $dbname, $class->__dbHost, $class->__dbPort || 5432 );
 
-    my $dbh = DBI->connect( $dsn, dbUser, dbPass, { RaiseError => 1 } )
-      || die DBI->errstr;
+    my $dbh = DBI->connect(
+      $dsn, $class->__dbUser, $class->__dbPass, { RaiseError => 1 }
+    ) || die DBI->errstr;
 
     my $sth =
       $dbh->prepare("select count(*) from information_schema.tables")
@@ -1354,6 +1327,12 @@ name, mtime, ctime.
 sub __baseAsserts {
   my $class = shift;
 
+  my @dtArgs;
+
+  if ( $class->get("__useDbi") ) {
+    @dtArgs = ( columnType => $class->__datetimeColumnType() );
+  }
+
   my $asserts = $class->get("__baseAsserts");
 
   if ( !defined $asserts ) {
@@ -1370,14 +1349,12 @@ sub __baseAsserts {
       ),
       mtime => Devel::Ladybug::DateTime->assert(
         Devel::Ladybug::Type::subtype(
-          descript   => "The last modified timestamp of this object",
-          columnType => $class->__datetimeColumnType(),
+          descript   => "The last modified timestamp of this object", @dtArgs
         )
       ),
       ctime => Devel::Ladybug::DateTime->assert(
         Devel::Ladybug::Type::subtype(
-          descript   => "The creation timestamp of this object",
-          columnType => $class->__datetimeColumnType(),
+          descript   => "The creation timestamp of this object", @dtArgs
         )
       ),
     );
@@ -1641,12 +1618,14 @@ sub __marshal {
           my $sth = $elementClass->query(
             sprintf q|
             SELECT %s FROM %s
-              WHERE parentId = %s
-              ORDER BY elementIndex + 0
+              WHERE %s = %s
+              ORDER BY %s + 0
           |,
             $elementClass->__selectColumnNames()->join(", "),
             $elementClass->tableName(),
-            $elementClass->quote( $self->{ $class->__primaryKey() } )
+            $class->__elementParentKey(),
+            $elementClass->quote( $self->{ $class->__primaryKey() } ),
+            $class->__elementIndexKey(),
           );
 
           while ( my $element = $sth->fetchrow_hashref() ) {
@@ -1673,10 +1652,11 @@ sub __marshal {
 
           my $sth = $elementClass->query(
             sprintf q|
-            SELECT %s FROM %s WHERE parentId = %s
+            SELECT %s FROM %s WHERE %s = %s
           |,
             $elementClass->__selectColumnNames()->join(", "),
             $elementClass->tableName(),
+            $class->__elementParentKey(),
             $elementClass->quote( $self->{ $class->__primaryKey() } )
           );
 
@@ -1707,23 +1687,7 @@ sub __marshal {
   # input which was received, and to load any default instance
   # variables.
   #
-  $self = $class->new($self);
-
-  my $newRefType = ref($self);
-
-  #
-  # If we got this far, we're probably good... but here are a couple
-  # more checks as a developer's safety net.
-  #
-  throw Devel::Ladybug::DataConversionFailed(
-    "Couldn't bless $self into $class- did new() reject input?")
-    if !$newRefType;
-
-  throw Devel::Ladybug::DataConversionFailed(
-    "Couldn't bless $self into $class- got $newRefType (weird)")
-    if $newRefType ne $class;
-
-  return $self;
+  return $class->new($self);
 }
 
 =pod
@@ -1785,154 +1749,6 @@ sub __allNamesSth {
 
 =pod
 
-=item * $class->__datetimeColumnType();
-
-Returns an override column type for ctime/mtime
-
-=cut
-
-sub __datetimeColumnType {
-  my $class = shift;
-
-  return $class->__dispatch('__datetimeColumnType');
-}
-
-=pod
-
-=item * $class->__beginTransaction();
-
-Begins a new SQL transation.
-
-=cut
-
-sub __beginTransaction {
-  my $class = shift;
-
-  return $class->__dispatch('__beginTransaction');
-}
-
-=pod
-
-=item * $class->__rollbackTransaction();
-
-Rolls back the current SQL transaction.
-
-=cut
-
-sub __rollbackTransaction {
-  my $class = shift;
-
-  return $class->__dispatch('__rollbackTransaction');
-}
-
-=pod
-
-=item * $class->__commitTransaction();
-
-Commits the current SQL transaction.
-
-=cut
-
-sub __commitTransaction {
-  my $class = shift;
-
-  return $class->__dispatch('__commitTransaction');
-}
-
-=pod
-
-=item * $class->__beginTransactionStatement();
-
-Returns the SQL used to begin a SQL transaction
-
-=cut
-
-sub __beginTransactionStatement {
-  my $class = shift;
-
-  return $class->__dispatch('__beginTransactionStatement');
-}
-
-=pod
-
-=item * $class->__commitTransactionStatement();
-
-Returns the SQL used to commit a SQL transaction
-
-=cut
-
-sub __commitTransactionStatement {
-  my $class = shift;
-
-  return $class->__dispatch('__commitTransactionStatement');
-}
-
-=pod
-
-=item * $class->__rollbackTransactionStatement();
-
-Returns the SQL used to rollback a SQL transaction
-
-=cut
-
-sub __rollbackTransactionStatement {
-  my $class = shift;
-
-  return $class->__dispatch('__rollbackTransactionStatement');
-}
-
-=pod
-
-=item * $class->__schema()
-
-Returns the SQL used to construct the receiving class's table.
-
-=cut
-
-sub __schema {
-  my $class = shift;
-
-  Devel::Ladybug::AssertFailed->throw(
-    "'name' must be asserted as unique")
-    if !$class->asserts->{name} || !$class->asserts->{name}->unique;
-
-  my $schema = $class->__dispatch('__schema');
-
-  return $schema;
-}
-
-=pod
-
-=item * $class->__concatNameStatement()
-
-Return the SQL used to look up name concatenated with the other
-attributes which it is uniquely keyed with.
-
-=cut
-
-sub __concatNameStatement {
-  my $class = shift;
-
-  return $class->__dispatch('__concatNameStatement');
-}
-
-=pod
-
-=item * $class->__statementForColumn($attr, $type, $foreign, $unique)
-
-Returns the chunk of SQL used for this attribute in the CREATE TABLE
-syntax.
-
-=cut
-
-sub __statementForColumn {
-  my $class = shift;
-
-  return $class->__dispatch( '__statementForColumn', @_ );
-}
-
-=pod
-
 =item * $class->__cacheKey($id)
 
 Returns the key for storing and retrieving this record in Memcached.
@@ -1966,113 +1782,13 @@ sub __cacheKey {
   return $key;
 }
 
-=pod
-
-=item * $class->__dropTable()
-
-Drops the receiving class's database table.
-
-  use YourApp::Example;
-
-  YourApp::Example->__dropTable();
-
-=cut
-
-sub __dropTable {
-  my $class = shift;
-
-  return $class->__dispatch('__dropTable');
-}
-
-=pod
-
-=item * $class->__createTable()
-
-Creates the receiving class's database table
-
-  use YourApp::Example;
-
-  YourApp::Example->__createTable();
-
-=cut
-
-sub __createTable {
-  my $class = shift;
-
-  return $class->__dispatch('__createTable');
-}
-
-=pod
-
-=item * $class->__selectTableName()
-
-Returns a string representing the name of the class's current table.
-
-For DBs which support cross-database queries, this returns
-C<databaseName> concatenated with C<tableName> (eg.
-"yourdb.yourclass"), otherwise this method just returns the same value
-as C<tableName>.
-
-Delegates to the class's vendor-specific override.
-
-=cut
-
-sub __selectTableName() {
-  my $class = shift;
-
-  return $class->__dispatch('__selectTableName');
-}
-
-=pod
-
-=item * $class->__selectRowStatement($id)
-
-Returns the SQL used to select a record by id.
-
-=cut
-
-sub __selectRowStatement {
-  my $class = shift;
-  my $id    = shift;
-
-  return $class->__dispatch( '__selectRowStatement', $id );
-}
-
-=pod
-
-=item * $class->__allNamesStatement()
-
-Returns the SQL used to generate a list of all record names
-
-=cut
-
-sub __allNamesStatement {
-  my $class = shift;
-
-  return $class->__dispatch('__allNamesStatement');
-}
-
-=pod
-
-=item * $class->__allIdsStatement()
-
-Returns the SQL used to generate a list of all record ids
-
-=cut
-
-sub __allIdsStatement {
-  my $class = shift;
-
-  return $class->__dispatch('__allIdsStatement');
-}
-
 sub __write {
   my $class = shift;
   my $query = shift;
 
   my $rows;
 
-  eval { $rows = $class->__dbh()->do($query); };
+  eval { $rows = $class->__dbh()->do($query) };
 
   if ($@) {
     my $err = $class->__dbh()->errstr() || $@;
@@ -2082,12 +1798,6 @@ sub __write {
   }
 
   return $rows;
-}
-
-sub __wrapWithReconnect {
-  my $class = shift;
-
-  return $class->__dispatch( '__wrapWithReconnect', @_ );
 }
 
 sub __query {
@@ -2182,6 +1892,12 @@ active.
 
 =cut
 
+sub __dbhKey {
+  my $class = shift;
+
+  return join("_", $class->databaseName, $class->__dbiType);
+}
+
 sub __dbh {
   my $class = shift;
 
@@ -2191,11 +1907,12 @@ sub __dbh {
   }
 
   my $dbName = $class->databaseName();
+  my $dbKey = $class->__dbhKey();
 
   $dbi ||= Devel::Ladybug::Hash->new();
-  $dbi->{$dbName} ||= Devel::Ladybug::Hash->new();
+  $dbi->{$dbKey} ||= Devel::Ladybug::Hash->new();
 
-  if ( !$dbi->{$dbName}->{$$} ) {
+  if ( !$dbi->{$dbKey}->{$$} ) {
     my $dbiType = $class->__dbiType();
 
     if ( $dbiType == Devel::Ladybug::Enum::DBIType::MySQL ) {
@@ -2207,12 +1924,12 @@ sub __dbh {
         user     => dbUser
       );
 
-      $dbi->{$dbName}->{$$} =
+      $dbi->{$dbKey}->{$$} =
         Devel::Ladybug::Persistence::MySQL::connect(%creds);
     } elsif ( $dbiType == Devel::Ladybug::Enum::DBIType::SQLite ) {
       my %creds = ( database => join( '/', sqliteRoot, $dbName ) );
 
-      $dbi->{$dbName}->{$$} =
+      $dbi->{$dbKey}->{$$} =
         Devel::Ladybug::Persistence::SQLite::connect(%creds);
     } elsif ( $dbiType == Devel::Ladybug::Enum::DBIType::PostgreSQL ) {
       my %creds = (
@@ -2223,7 +1940,7 @@ sub __dbh {
         user     => dbUser
       );
 
-      $dbi->{$dbName}->{$$} =
+      $dbi->{$dbKey}->{$$} =
         Devel::Ladybug::Persistence::PostgreSQL::connect(%creds);
     } else {
       throw Devel::Ladybug::InvalidArgument(
@@ -2235,232 +1952,13 @@ sub __dbh {
     }
   }
 
-  my $err = $dbi->{$dbName}->{$$}->{_lastErrorStr};
+  my $err = $dbi->{$dbKey}->{$$}->{_lastErrorStr};
 
   if ($err) {
     throw Devel::Ladybug::DBConnectFailed($err);
   }
 
-  return $dbi->{$dbName}->{$$}->get_dbh();
-}
-
-=pod
-
-=item * $class->__dbi()
-
-Returns the currently active L<GlobalDBI> object, or C<undef> if there
-isn't one.
-
-=cut
-
-sub __dbi {
-  my $class = shift;
-
-  my $dbName = $class->databaseName();
-
-  if ( !$dbi || !$dbi->{$dbName} || !$dbi->{$dbName}->{$$} ) {
-
-    #
-    # Create a GlobalDBI instance for this process
-    #
-    $class->__dbh();
-  }
-
-  if ( !$dbi || !$dbi->{$dbName} ) {
-    return;
-  }
-
-  return $dbi->{$dbName}->{$$};
-}
-
-=pod
-
-=item * $class->__doesIdExistStatement($id)
-
-Returns the SQL used to look up the presence of an ID in the current
-table
-
-=cut
-
-sub __doesIdExistStatement {
-  my $class = shift;
-  my $id    = shift;
-
-  return $class->__dispatch( '__doesIdExistStatement', $id );
-}
-
-=pod
-
-=item * $class->__doesNameExistStatement($name)
-
-Returns the SQL used to look up the presence of a name in the current
-table
-
-=cut
-
-sub __doesNameExistStatement {
-  my $class = shift;
-  my $name  = shift;
-
-  return $class->__dispatch( '__doesNameExistStatement', $name );
-}
-
-=pod
-
-=item * $class->__nameForIdStatement($id)
-
-Returns the SQL used to look up the name for a given ID
-
-=cut
-
-sub __nameForIdStatement {
-  my $class = shift;
-  my $id    = shift;
-
-  return $class->__dispatch( '__nameForIdStatement', $id );
-}
-
-=pod
-
-=item * $class->__idForNameStatement($name)
-
-Returns the SQL used to look up the ID for a given name
-
-=cut
-
-sub __idForNameStatement {
-  my $class = shift;
-  my $name  = shift;
-
-  return $class->__dispatch( '__idForNameStatement', $name );
-}
-
-=pod
-
-=item * $class->__serialType()
-
-Returns the database column type used for auto-incrementing IDs.
-
-=cut
-
-sub __serialType {
-  my $class = shift;
-
-  return $class->__dispatch('__serialType');
-}
-
-=pod
-
-=item * $class->__updateColumnNames();
-
-Returns a Devel::Ladybug::Array of the column names to include with
-UPDATE statements.
-
-=cut
-
-sub __updateColumnNames {
-  my $class = shift;
-
-  return $class->__dispatch('__updateColumnNames');
-}
-
-=pod
-
-=item * $class->__selectColumnNames();
-
-Returns a Devel::Ladybug::Array of the column names to include with
-SELECT statements.
-
-=cut
-
-sub __selectColumnNames {
-  my $class = shift;
-
-  return $class->__dispatch('__selectColumnNames');
-}
-
-=pod
-
-=item * $class->__insertColumnNames();
-
-Returns a Devel::Ladybug::Array of the column names to include with
-INSERT statements.
-
-=cut
-
-sub __insertColumnNames {
-  my $class = shift;
-
-  return $class->__dispatch('__insertColumnNames');
-}
-
-=pod
-
-=item * $class->__quoteDatetimeInsert();
-
-Returns the SQL fragment used for unixtime->datetime conversion
-
-=cut
-
-sub __quoteDatetimeInsert {
-  my $class = shift;
-
-  return $class->__dispatch( '__quoteDatetimeInsert', @_ );
-}
-
-=pod
-
-=item * $class->__quoteDatetimeSelect();
-
-Returns the SQL fragment used for datetime->unixtime conversion
-
-=cut
-
-sub __quoteDatetimeSelect {
-  my $class = shift;
-
-  return $class->__dispatch( '__quoteDatetimeSelect', @_ );
-}
-
-=pod
-
-=item * $receiver->__dispatch($methodName, @args)
-
-Delegate the received class or instance method and arguments to the
-appropriate database-specific persistence module.
-
-=cut
-
-sub __dispatch {
-  my $receiver = shift;
-  my $method   = shift;
-
-  my $module;
-
-  my $class = $receiver->class || $receiver;
-
-  if ( $class->__dbiType == Devel::Ladybug::Enum::DBIType::MySQL ) {
-    $module = "Devel::Ladybug::Persistence::MySQL";
-  } elsif ( $class->__dbiType == Devel::Ladybug::Enum::DBIType::SQLite )
-  {
-    $module = "Devel::Ladybug::Persistence::SQLite";
-  } elsif (
-    $class->__dbiType == Devel::Ladybug::Enum::DBIType::PostgreSQL )
-  {
-    $module = "Devel::Ladybug::Persistence::PostgreSQL";
-  }
-
-  do {
-    no strict "refs";
-
-    if ( !defined( *{"$module\::$method"} ) ) {
-      $module = "Devel::Ladybug::Persistence::Generic";
-    }
-
-    my $results = &{"$module\::$method"}( $receiver, @_ );
-
-    return $results;
-  };
+  return $dbi->{$dbKey}->{$$};
 }
 
 =pod
@@ -2634,6 +2132,8 @@ my $alreadyWarnedForRcs;
 sub __init {
   my $class = shift;
 
+  $class->__INIT();
+
   if ( $class->__useRcs ) {
     if ( $^O eq 'openbsd' ) {
       #
@@ -2671,10 +2171,6 @@ sub __init {
     $alreadyWarnedForMemcached++;
   }
 
-  if ( $class->__useDbi ) {
-    $class->__dispatch('__init');
-  }
-
   #
   # Initialize classes for inline elements
   #
@@ -2695,6 +2191,87 @@ sub __init {
 
   return true;
 }
+
+
+=pod
+
+=item * __dbUser, __dbPass, __dbHost, __dbPort
+
+These items may be set on a per-class basis.
+
+Unless overridden, credentials from the global C<.ladybugrc> will
+be used.
+
+  #
+  # Set as class variables in the prototype:
+  #
+  create "YourApp::YourClass" => {
+    __dbiType => Devel::Ladybug::Enum::DBIType::MySQL,
+    __dbUser => "user",
+    __dbPass => "pass",
+    __dbHost => "example.com",
+    __dbPort => 12345,
+
+  };
+
+
+  #
+  # Set at runtime, such as from apache startup:
+  #
+  my $class = "YourApp::YourClass";
+
+  YourApp::YourClass->__dbUser("user");
+  YourApp::YourClass->__dbPass("pass");
+  YourApp::YourClass->__dbHost("example.com");
+  YourApp::YourClass->__dbPort(12345);
+
+=cut
+
+
+sub __dbUser {
+  my $class = shift;
+
+  if ( scalar(@_) ) {
+    my $newValue = shift;
+    $class->set("__dbUser", $newValue);
+  }
+
+  return $class->get("__dbUser") || dbUser;
+}
+
+sub __dbPass {
+  my $class = shift;
+
+  if ( scalar(@_) ) {
+    my $newValue = shift;
+    $class->set("__dbPass", $newValue);
+  }
+
+  return $class->get("__dbPass") || dbPass;
+}
+
+sub __dbHost {
+  my $class = shift;
+
+  if ( scalar(@_) ) {
+    my $newValue = shift;
+    $class->set("__dbHost", $newValue);
+  }
+
+  return $class->get("__dbHost") || dbHost;
+}
+
+sub __dbPort {
+  my $class = shift;
+
+  if ( scalar(@_) ) {
+    my $newValue = shift;
+    $class->set("__dbPort", $newValue);
+  }
+
+  return $class->get("__dbPort") || dbPort;
+}
+
 
 =pod
 
@@ -2798,8 +2375,8 @@ sub remove {
       next if !$elementClass;
 
       $elementClass->write(
-        sprintf 'DELETE FROM %s WHERE parentId = %s',
-        $elementClass->tableName, $class->quote( $self->key ) );
+        sprintf 'DELETE FROM %s WHERE %s = %s',
+        $elementClass->tableName, $class->__elementParentKey, $class->quote( $self->key ) );
     }
 
     #
@@ -3326,8 +2903,9 @@ sub _localSaveInsideTransaction {
         my $elementClass = $class->elementClass($key);
 
         $elementClass->write(
-          sprintf 'DELETE FROM %s WHERE parentId = %s',
+          sprintf 'DELETE FROM %s WHERE %s = %s',
           $elementClass->tableName(),
+          $class->__elementParentKey(),
           $class->quote( $self->key() )
         );
 
@@ -3452,51 +3030,6 @@ sub _saveToMemcached {
 
 =pod
 
-=item * $self->_updateRowStatement()
-
-Returns the SQL used to run an "UPDATE" statement for the receiving
-object.
-
-=cut
-
-sub _updateRowStatement {
-  my $self = shift;
-
-  return $self->__dispatch("_updateRowStatement");
-}
-
-=pod
-
-=item * $self->_insertRowStatement()
-
-Returns the SQL used to run an "INSERT" statement for the receiving
-object.
-
-=cut
-
-sub _insertRowStatement {
-  my $self = shift;
-
-  return $self->__dispatch("_insertRowStatement");
-}
-
-=pod
-
-=item * $self->_deleteRowStatement()
-
-Returns the SQL used to run a "DELETE" statement for the receiving
-object.
-
-=cut
-
-sub _deleteRowStatement {
-  my $self = shift;
-
-  return $self->__dispatch("_deleteRowStatement");
-}
-
-=pod
-
 =item * $self->_updateRecord()
 
 Executes an INSERT or UPDATE for this object's record. Callback method
@@ -3555,12 +3088,6 @@ INSERT query.
 #
 our $ForceInsertSQL;
 our $ForceUpdateSQL;
-
-sub _quotedValues {
-  my $self = shift;
-
-  return $self->__dispatch( '_quotedValues', @_ );
-}
 
 =pod
 
@@ -3794,7 +3321,7 @@ sub _rcs {
 
 =head1 SEE ALSO
 
-L<Cache::Memcached::Fast>, L<Rcs>, L<YAML::Syck>, L<GlobalDBI>, L<DBI>
+L<Cache::Memcached::Fast>, L<Rcs>, L<YAML::Syck>, L<DBI>
 
 This file is part of L<Devel::Ladybug>.
 

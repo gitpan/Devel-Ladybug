@@ -42,6 +42,10 @@ use Devel::Ladybug::Type;
 use Devel::Ladybug::Enum::Bool;
 use Devel::Ladybug::Exceptions;
 
+use Devel::Ladybug::Persistence::MySQL;
+use Devel::Ladybug::Persistence::SQLite;
+use Devel::Ladybug::Persistence::PostgreSQL;
+
 use base qw| Devel::Ladybug::Class |;
 
 our $AUTOLOAD;
@@ -787,6 +791,38 @@ sub AUTOLOAD {
   return if $message eq 'DESTROY';
 
   my $class = $self->class();
+
+  do {
+    my $receiver = $class;
+
+    if ( !$receiver ) { $receiver = $self }
+
+    if ( $receiver->can("__useDbi") && $receiver->__useDbi ) {
+      my $delegate;
+
+      if ( $receiver->__dbiType == 0 ) {
+        $delegate = "Devel::Ladybug::Persistence::MySQL";
+      } elsif ( $receiver->__dbiType == 1 ) {
+        $delegate = "Devel::Ladybug::Persistence::SQLite";
+      } elsif ( $receiver->__dbiType == 2 ) {
+        $delegate = "Devel::Ladybug::Persistence::PostgreSQL";
+      }
+
+      if ( !defined( *{"$delegate\::$message"} ) ) {
+        $delegate = "Devel::Ladybug::Persistence::Generic";
+      }
+
+      if ( $delegate->can($message) ) {
+        do {
+          no strict "refs";
+
+          my $results = &{"$delegate\::$message"}( $self, @_ );
+
+          return $results;
+        };
+      }
+    }
+  };
 
   if ( !$class ) {
     $class = $self;

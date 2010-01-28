@@ -11,7 +11,7 @@
 
 package Devel::Ladybug;
 
-our $VERSION = '0.404';
+our $VERSION = '0.405';
 
 use strict;
 use diagnostics;
@@ -111,15 +111,11 @@ Devel::Ladybug will try to automatically determine an appropriate type
 for the local system. If memcached is available, Devel::Ladybug will
 use it in conjunction with the permanent backing store.
 
-=head1 TOO LONG, DIDN'T READ
-
-This document covers a lot of ground. If your sense of urgency
-is strong indeed, you may wish to read the short version at
-L<Devel::Ladybug::TLDR>.
+L<Devel::Ladybug::TLDR>
 
 =head1 VERSION
 
-This documentation is for version B<0.404> of Devel::Ladybug.
+This documentation is for version B<0.405> of Devel::Ladybug.
 
 =head1 FRAMEWORK ASSUMPTIONS
 

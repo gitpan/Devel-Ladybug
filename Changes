@@ -1,3 +1,9 @@
+.405
+  - Accept per-class db credentials
+  - Fix for DateTime instantiation from zero values
+  - PostgreSQL support actually works now
+  - DB-specific delegate methods are now handled by AUTOLOAD
+
 .404
   - Update documentation for usage under mod_perl (thx rrose)
   - Use default memcached port by uh, default.

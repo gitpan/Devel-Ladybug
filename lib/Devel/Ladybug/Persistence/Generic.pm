@@ -3,12 +3,11 @@ package Devel::Ladybug::Persistence::Generic;
 use strict;
 use warnings;
 
+use DBI;
 use Error qw| :try |;
 
 use Devel::Ladybug::Enum::Bool;
 use Devel::Ladybug::Enum::DBIType;
-
-use GlobalDBI;
 
 sub columnNames {
   my $class = shift;
@@ -452,21 +451,6 @@ sub __wrapWithReconnect {
   return &$sub(@_);
 }
 
-sub __init {
-  my $class = shift;
-
-  if ( $class =~ /::Abstract/ ) {
-    return false;
-  }
-
-  #
-  #
-  #
-  warn "$class\::__init not implemented";
-
-  return true;
-}
-
 sub __updateColumnNames {
   my $class = shift;
 
@@ -582,11 +566,14 @@ sub _quotedValues {
     sub {
       my $key = shift;
 
-      my $value = $self->get($key);
+      my $realKey = $key;
+      $realKey =~ s/"//g;
+
+      my $value = $self->get($realKey);
 
       my $quotedValue;
 
-      my $type = $asserts->{$key};
+      my $type = $asserts->{$realKey};
       return if !$type;
 
       if ( $type->sqlInsertValue
@@ -701,6 +688,18 @@ sub __useForeignKeys {
   return false;
 }
 
+sub __elementParentKey {
+  my $class = shift;
+
+  return "parentId";
+}
+
+sub __elementIndexKey {
+  my $class = shift;
+
+  return "elementIndex";
+}
+
 true;
 
 =pod
@@ -729,6 +728,176 @@ This module should not be used directly.
 
 New DBI types should use this module as a base, and override methods as
 needed.
+
+=head1 PUBLIC CLASS METHODS
+
+=over 4
+
+=item * $class->columnNames()
+
+Returns a Devel::Ladybug::Array of all column names in the receiving
+class's table.
+
+This will be the same as the list returned by attributes(), minus any
+attributes which were asserted as Array or Hash and therefore live in a
+seperate linked table.
+
+=back
+
+=head1 PRIVATE CLASS METHODS
+
+=over 4
+
+=item * $class->__useForeignKeys()
+
+Returns a true value if the SQL schema should include foreign key
+constraints where applicable. Default is appropriate for the chosen DBI
+type.
+
+=item * $class->__datetimeColumnType();
+
+Returns an override column type for ctime/mtime
+
+=item * $class->__beginTransaction();
+
+Begins a new SQL transation.
+
+=item * $class->__rollbackTransaction();
+
+Rolls back the current SQL transaction.
+
+=item * $class->__commitTransaction();
+
+Commits the current SQL transaction.
+
+=item * $class->__beginTransactionStatement();
+
+Returns the SQL used to begin a SQL transaction
+
+=item * $class->__commitTransactionStatement();
+
+Returns the SQL used to commit a SQL transaction
+
+=item * $class->__rollbackTransactionStatement();
+
+Returns the SQL used to rollback a SQL transaction
+
+=item * $class->__schema()
+
+Returns the SQL used to construct the receiving class's table.
+
+=item * $class->__concatNameStatement()
+
+Return the SQL used to look up name concatenated with the other
+attributes which it is uniquely keyed with.
+
+=item * $class->__statementForColumn($attr, $type, $foreign, $unique)
+
+Returns the chunk of SQL used for this attribute in the CREATE TABLE
+syntax.
+
+=item * $class->__dropTable()
+
+Drops the receiving class's database table.
+
+  use YourApp::Example;
+
+  YourApp::Example->__dropTable();
+
+=item * $class->__createTable()
+
+Creates the receiving class's database table
+
+  use YourApp::Example;
+
+  YourApp::Example->__createTable();
+
+Returns a string representing the name of the class's current table.
+
+For DBs which support cross-database queries, this returns
+C<databaseName> concatenated with C<tableName> (eg.
+"yourdb.yourclass"), otherwise this method just returns the same value
+as C<tableName>.
+
+=item * $class->__selectRowStatement($id)
+
+Returns the SQL used to select a record by id.
+
+=item * $class->__allNamesStatement()
+
+Returns the SQL used to generate a list of all record names
+
+=item * $class->__allIdsStatement()
+
+Returns the SQL used to generate a list of all record ids
+
+=item * $class->__doesIdExistStatement($id)
+
+Returns the SQL used to look up the presence of an ID in the current
+table
+
+=item * $class->__doesNameExistStatement($name)
+
+Returns the SQL used to look up the presence of a name in the current
+table
+
+=item * $class->__nameForIdStatement($id)
+
+Returns the SQL used to look up the name for a given ID
+
+=item * $class->__idForNameStatement($name)
+
+Returns the SQL used to look up the ID for a given name
+
+=item * $class->__serialType()
+
+Returns the database column type used for auto-incrementing IDs.
+
+=item * $class->__updateColumnNames();
+
+Returns a Devel::Ladybug::Array of the column names to include with
+UPDATE statements.
+
+=item * $class->__selectColumnNames();
+
+Returns a Devel::Ladybug::Array of the column names to include with
+SELECT statements.
+
+=item * $class->__insertColumnNames();
+
+Returns a Devel::Ladybug::Array of the column names to include with
+INSERT statements.
+
+=item * $class->__quoteDatetimeInsert();
+
+Returns the SQL fragment used for unixtime->datetime conversion
+
+=item * $class->__quoteDatetimeSelect();
+
+Returns the SQL fragment used for datetime->unixtime conversion
+
+=back
+
+=head1 PRIVATE INSTANCE METHODS
+
+=over 4
+
+=item * $self->_updateRowStatement()
+
+Returns the SQL used to run an "UPDATE" statement for the receiving
+object.
+
+=item * $self->_insertRowStatement()
+
+Returns the SQL used to run an "INSERT" statement for the receiving
+object.
+
+=item * $self->_deleteRowStatement()
+
+Returns the SQL used to run a "DELETE" statement for the receiving
+object.
+
+=back
 
 =head1 SEE ALSO
 

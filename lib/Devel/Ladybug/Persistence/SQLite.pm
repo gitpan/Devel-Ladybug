@@ -23,12 +23,12 @@ SQLite
 
 =item * C<connect(%args)>
 
-Constructor for a SQLite GlobalDBI object.
+Constructor for a SQLite DBI object.
 
 C<%args> is a hash with a key for C<database> (database name), which in
 SQLite is really a local filesystem path (/path/to/db).
 
-Returns a new L<GlobalDBI> instance.
+Returns a new L<DBI> instance.
 
 =back
 
@@ -37,6 +37,7 @@ Returns a new L<GlobalDBI> instance.
 use strict;
 use warnings;
 
+use Error qw| :try |;
 use File::Path;
 use Devel::Ladybug::Enum::Bool;
 use Devel::Ladybug::Constants qw| sqliteRoot |;
@@ -48,17 +49,14 @@ sub connect {
 
   my $dsn = sprintf( 'DBI:SQLite:dbname=%s', $args{database} );
 
-  $GlobalDBI::CONNECTION{ $args{database} } ||=
-    [ $dsn, '', '', { RaiseError => 1 } ];
-
-  return GlobalDBI->new( dbname => $args{database} );
+  return DBI->connect( $dsn, '', '', { RaiseError => 1 } );
 }
 
 =pod
 
 =head1 SEE ALSO
 
-L<GlobalDBI>, L<DBI>, L<DBD::SQLite>
+L<DBI>, L<DBD::SQLite>
 
 L<Devel::Ladybug::Persistence>
 
@@ -77,7 +75,7 @@ sub __wrapWithReconnect {
   return &$sub(@_);
 }
 
-sub __init {
+sub __INIT {
   my $class = shift;
 
   if ( $class =~ /::Abstract/ ) {

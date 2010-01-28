@@ -150,7 +150,10 @@ use Error qw| :try |;
 use Devel::Ladybug::Enum::Bool;
 use Devel::Ladybug::Exceptions;
 use Devel::Ladybug::Redefines;
-use Devel::Ladybug::Persistence::MySQL;    # For RefOpts constants
+# use Devel::Ladybug::Persistence::MySQL;    # For RefOpts constants
+
+use constant RefOpts =>
+  [ "CASCADE", "SET NULL", "RESTRICT", "NO ACTION" ];
 
 use base
   qw| Exporter Devel::Ladybug::Class::Dumper Devel::Ladybug::Class |;
@@ -799,12 +802,12 @@ our %RULES = (
   },
 
   # CASCADE, SET NULL, etc
-  onDelete => sub {
+  deleteRefOpt => sub {
     my $value = shift;
 
     insist( $value, isStr )
       && ( grep { uc($value) eq $_ }
-      @{ (Devel::Ladybug::Persistence::MySQL::RefOpts) } )
+      @{ (RefOpts) } )
       || (
       throw Devel::Ladybug::InvalidArgument(
         "Invalid reference option specified")
@@ -818,7 +821,7 @@ our %RULES = (
 
     insist( $value, isStr )
       && ( grep { uc($value) eq $_ }
-      @{ (Devel::Ladybug::Persistence::MySQL::RefOpts) } )
+      @{ (RefOpts) } )
       || (
       throw Devel::Ladybug::InvalidArgument(
         "Invalid reference option specified")

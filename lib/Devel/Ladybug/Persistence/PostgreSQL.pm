@@ -33,12 +33,12 @@ See L<Devel::Ladybug::Constants>.
 
 =item * C<connect(%args)>
 
-Constructor for a PostgreSQL GlobalDBI object.
+Constructor for a PostgreSQL DBI object.
 
 C<%args> is a hash with keys for C<database> (database name), C<host>,
 C<port>, C<user>, and C<pass>.
 
-Returns a new L<GlobalDBI> instance.
+Returns a new L<DBI> instance.
 
 =back
 
@@ -47,8 +47,8 @@ Returns a new L<GlobalDBI> instance.
 use strict;
 use warnings;
 
-use Error qw| :try |;
 use Devel::Ladybug::Enum::Bool;
+use Error qw| :try |;
 
 use base qw| Devel::Ladybug::Persistence::Generic |;
 
@@ -58,17 +58,14 @@ sub connect {
   my $dsn = sprintf( 'dbi:Pg:database=%s;host=%s;port=%s',
     $args{database}, $args{host}, $args{port} );
 
-  $GlobalDBI::CONNECTION{ $args{database} } ||=
-    [ $dsn, $args{user}, $args{pass}, { RaiseError => 1 } ];
-
-  return GlobalDBI->new( dbname => $args{database} );
+  return DBI->connect( $dsn, $args{user}, $args{pass}, { RaiseError => 1 } );
 }
 
 =pod
 
 =head1 SEE ALSO
 
-L<GlobalDBI>, L<DBI>, L<DBD::Pg>
+L<DBI>, L<DBD::Pg>
 
 L<Devel::Ladybug::Persistence>
 
@@ -80,7 +77,7 @@ This file is part of L<Devel::Ladybug>.
 ######## The remainder of this module contains vendor-specific overrides
 ########
 
-sub __init {
+sub __INIT {
   my $class = shift;
 
   if ( $class =~ /::Abstract/ ) {
@@ -124,7 +121,7 @@ sub __quoteDatetimeSelect {
   my $class = shift;
   my $attr  = shift;
 
-  return $attr;
+  return "\"$attr\"";
 }
 
 sub __wrapWithReconnect {
@@ -190,13 +187,21 @@ sub __statementForColumn {
   #
   # Using this key as an AUTO_INCREMENT primary key?
   #
-  return join( " ", $attribute, $class->__serialType )
+  return join( " ", "\"$attribute\"", $class->__serialType )
     if $type->serial;
 
   #
   #
   #
   my $datatype = $type->columnType || 'TEXT';
+
+  if ( $datatype =~ /^INT/ ) {
+    warn "$datatype will be INT in Postgres";
+    $datatype = "INT";
+  } elsif ( $datatype =~ /^DOUBLE/ ) {
+    warn "$datatype will be FLOAT in Postgres";
+    $datatype = "FLOAT";
+  }
 
   #
   # Some database declare UNIQUE constraints inline with the column
@@ -230,13 +235,13 @@ sub __statementForColumn {
     #
     my $quotedDefault = $class->quote( $type->default );
 
-    $fragment->push( $attribute, $datatype, 'DEFAULT', $quotedDefault );
+    $fragment->push( "\"$attribute\"", $datatype, 'DEFAULT', $quotedDefault );
   } else {
 
     #
     # No default() was specified:
     #
-    $fragment->push( $attribute, $datatype );
+    $fragment->push( "\"$attribute\"", $datatype );
   }
 
   $fragment->push($notNull)       if $notNull;
@@ -251,7 +256,7 @@ sub __statementForColumn {
     #
     $fragment->push(
       sprintf(
-        'references %s(%s)',
+        'references %s("%s")',
         $memberClass->tableName, $memberClass->__primaryKey
       )
     );
@@ -263,13 +268,100 @@ sub __statementForColumn {
 sub __serialType {
   my $class = shift;
 
-  return "SERIAL";
+  return "SERIAL PRIMARY KEY";
 }
 
 sub __useForeignKeys {
   my $class = shift;
 
   return true;
+}
+
+sub __selectColumnNames {
+  my $class = shift;
+
+  my $asserts = $class->asserts();
+
+  return $class->columnNames->collect(
+    sub {
+      my $attr = shift;
+
+      my $type = $asserts->{$attr};
+
+      my $objectClass = $type->objectClass;
+
+      return if $objectClass->isa("Devel::Ladybug::Array");
+      return if $objectClass->isa("Devel::Ladybug::Hash");
+
+      if ( $objectClass->isa("Devel::Ladybug::DateTime")
+        && ( $type->columnType eq 'DATETIME' ) )
+      {
+
+       # Devel::Ladybug::Array::yield("UNIX_TIMESTAMP($attr) AS $attr");
+        Devel::Ladybug::Array::yield( $class->__quoteDatetimeSelect($attr) );
+
+      } else {
+        Devel::Ladybug::Array::yield("\"$attr\"");
+      }
+    }
+  );
+}
+
+sub __updateColumnNames {
+  my $class = shift;
+
+  my $priKey = $class->__primaryKey;
+
+  return $class->columnNames->collect(
+    sub {
+      my $name = shift;
+
+      return if $name eq $priKey;
+      return if $name eq 'ctime';
+
+      Devel::Ladybug::Array::yield("\"$name\"");
+    }
+  );
+}
+
+sub __insertColumnNames {
+  my $class = shift;
+
+  my $priKey = $class->__primaryKey;
+
+  #
+  # Omit "id" from the SQL statement if we're using auto-increment
+  #
+  if ( $class->asserts->{$priKey}->isa("Devel::Ladybug::Type::Serial") ) {
+    return $class->columnNames->collect(
+      sub {
+        my $name = shift;
+
+        return if $name eq $priKey;
+
+        Devel::Ladybug::Array::yield("\"$name\"");
+      }
+    );
+
+  } else {
+    return $class->columnNames->collect( sub {
+      my $name = shift;
+
+      Devel::Ladybug::Array::yield("\"$name\"");
+    } );
+  }
+}
+
+sub __elementParentKey {
+  my $class = shift;
+
+  return "\"parentId\"";
+}
+
+sub __elementIndexKey {
+  my $class = shift;
+
+  return "\"elementIndex\"";
 }
 
 1;

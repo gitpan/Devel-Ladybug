@@ -36,7 +36,7 @@ sub assert {
     sub {
       my $time = $_[0];
 
-      if ( $time && $time =~ $datetimeRegex ) {
+      if ( $time && $time =~ /$datetimeRegex/ ) {
         $time = $class->newFrom( $1, $2, $3, $4, $5, $6 );
       }
 
@@ -57,9 +57,9 @@ sub assert {
 
 sub new {
   my $class = shift;
-  my $time  = shift;
+  my $time  = shift || 0;
 
-  if ( $time && $time =~ /$datetimeRegex/ ) {
+  if ( defined $time && $time =~ /$datetimeRegex/ ) {
     return $class->newFrom( $1, $2, $3, $4, $5, $6 );
   }
 
@@ -69,10 +69,8 @@ sub new {
 
   if ( $blessed && $time->can("epoch") ) {
     $epoch = $time->epoch();
-  } elsif ( $blessed && overload::Overloaded($time) ) {
-    $epoch = "$time";
   } else {
-    $epoch = $time;
+    $epoch = "$time";
   }
 
   Devel::Ladybug::Type::insist( $epoch, Devel::Ladybug::Type::isFloat );
@@ -91,6 +89,10 @@ sub newFrom {
   my $hour   = shift;
   my $minute = shift;
   my $sec    = shift;
+
+  if ( $year + $month + $day + $hour + $minute + $sec == 0 ) {
+    return $class->new();
+  }
 
   return $class->new(
     Time::Local::timelocal(

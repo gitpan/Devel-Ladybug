@@ -311,7 +311,7 @@ sub kickClassTires {
  #
  # Just in case there was already a table, make sure the schema is fresh
  #
-    ok( $class->__dropTable, "Drop existing table" );
+    ok( $class->__dropTable(), "Drop existing table" );
 
     ok( $class->__createTable, "Re-create table" );
   }
@@ -369,7 +369,7 @@ sub kickClassTires {
   );
 
   if ( $class->__useDbi ) {
-    ok( $class->__dropTable, "Drop table" );
+    ok( $class->__dropTable(), "Drop table" );
   }
 }
 

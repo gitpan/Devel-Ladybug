@@ -48,10 +48,9 @@ yamlHost: ~
 
   $Backends = Devel::Ladybug::Hash->new;
 
-  $Backends->{"SQLite"} =
-    Devel::Ladybug::Persistence::__supportsSQLite();
+  $Backends->{"SQLite"} = Devel::Ladybug::Node->__supportsSQLite();
 
-  $Backends->{"MySQL"} = Devel::Ladybug::Persistence::__supportsMySQL();
+  $Backends->{"MySQL"} = Devel::Ladybug::Node->__supportsMySQL();
 
   if ( !$Backends->{"MySQL"} ) {
     print
@@ -78,8 +77,7 @@ yamlHost: ~
     }
   }
 
-  $Backends->{"PostgreSQL"} =
-    Devel::Ladybug::Persistence::__supportsPostgreSQL();
+  $Backends->{"PostgreSQL"} = Devel::Ladybug::Node->__supportsPostgreSQL();
 
   if ( !$Backends->{"PostgreSQL"} ) {
     print
