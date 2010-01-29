@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Devel-Ladybug
-version:            0.405
+version:            0.406
 abstract:           ~
 author:
     - Alex Ayars <pause@nodekit.org>

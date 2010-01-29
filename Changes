@@ -1,3 +1,6 @@
+.406
+  - Fix for detection of missing RCS binaries
+
 .405
   - Accept per-class db credentials
   - Fix for DateTime instantiation from zero values

@@ -2132,8 +2132,6 @@ my $alreadyWarnedForRcs;
 sub __init {
   my $class = shift;
 
-  $class->__INIT();
-
   if ( $class->__useRcs ) {
     if ( $^O eq 'openbsd' ) {
       #
@@ -2161,6 +2159,8 @@ sub __init {
       }
     }
   }
+
+  $class->__INIT();
 
   if (!$alreadyWarnedForMemcached
     && $class->__useMemcached
