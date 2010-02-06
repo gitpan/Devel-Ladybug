@@ -41,6 +41,7 @@ use warnings;
 # include() isn't invoked on "use base", so this is needed here too:
 #
 use Devel::Ladybug::Hash;
+use Devel::Ladybug::ExtID;
 
 use base qw| Devel::Ladybug::Persistence Devel::Ladybug::Hash |;
 
@@ -48,23 +49,7 @@ sub assert {
   my $class = shift;
   my @rules = @_;
 
-  # my $test = sub(Devel::Ladybug::Class $value) {
-  my $test = sub {
-    my $value = shift;
-
-    if ( ref($value) && UNIVERSAL::isa( $value, $class ) ) {
-      return true;
-    }
-
-    throw Devel::Ladybug::AssertFailed(
-      "Received value is not a $class");
-  };
-
-  my %parsed = Devel::Ladybug::Type::__parseTypeArgs( $test, @rules );
-
-  $parsed{columnType} ||= 'TEXT';
-
-  return $class->__assertClass()->new(%parsed);
+  return Devel::Ladybug::ExtID->assert( $class, @rules );
 }
 
 sub new {

@@ -29,7 +29,9 @@ use overload
   my $second = shift;
 
   "$first" eq "$second";
-  };
+  },
+  '==' => sub { shift eq shift },
+  '!=' => sub { shift eq shift };
 
 use base qw| Devel::Ladybug::Class::Dumper Devel::Ladybug::Object |;
 
@@ -92,7 +94,7 @@ sub new {
 # throw Devel::Ladybug::InvalidArgument("$class instances may not be undefined")
 #  if !defined $self;
 
-  Devel::Ladybug::Type::insist $self, Devel::Ladybug::Type::isScalar;
+# Devel::Ladybug::Type::insist $self, Devel::Ladybug::Type::isScalar;
 
   if ( ref($self) && overload::Overloaded($self) ) {
     return bless $self, $class;    # ONE OF US NOW
@@ -109,7 +111,7 @@ sub assert {
   my @rules = @_;
 
   my %parsed =
-    Devel::Ladybug::Type::__parseTypeArgs( Devel::Ladybug::Type::isScalar,
+    Devel::Ladybug::Type::__parseTypeArgs( sub { 1 },
     @rules );
 
   return $class->__assertClass()->new(%parsed);
@@ -172,27 +174,30 @@ sub set {
 
 =pod
 
-=item * $self->size()
+=item * $self->length
 
 Object wrapper for Perl's built-in C<length()> function. Functionally
 the same as C<length(@$ref)>.
 
   my $scalar = Devel::Ladybug::Scalar->new("Testing");
 
-  my $size = $scalar->size(); # returns 7
+  my $length = $scalar->length(); # returns 7
 
 =cut
 
 ### imported function size() is redef'd
-no warnings "redefine";
+do {
+  no warnings "redefine";
 
-sub size {
-  my $self = shift;
+  sub size {
+    my $self = shift;
 
-  return $self->length();
-}
+    warn "depracated usage, please use length() instead";
 
-use warnings "redefine";
+    return $self->length();
+  }
+};
+
 ###
 
 =pod
@@ -217,7 +222,7 @@ Returns a true value if self contains no values, otherwise false.
 sub isEmpty {
   my $self = shift;
 
-  return ( $self->size() == 0 );
+  return ( $self->length() == 0 );
 }
 
 =pod

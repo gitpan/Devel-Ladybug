@@ -88,64 +88,28 @@ sub assert {
 
 =over 4
 
-=item * $hash->collect($sub), yield(item, [item, ...]), emit(item, [item...])
+=item * $hash->each($sub), yield(item, [item, ...]), emit(item, [item...])
 
 Ruby-esque key iterator method. Returns a new L<Devel::Ladybug::Array>,
 containing the yielded results of calling the received sub for each key
 in $hash.
 
-$hash->collect is shorthand for $hash->keys->collect, so you're really
-calling C<collect> in L<Devel::Ladybug::Array>. C<yield> and C<emit>
+$hash->each is shorthand for $hash->keys->each, so you're really
+calling C<each> in L<Devel::Ladybug::Array>. C<yield> and C<emit>
 are exported by L<Devel::Ladybug::Array>. Please see the documentation
-for Devel::Ladybug::Array regarding usage of C<collect>, C<yield>, and
+for Devel::Ladybug::Array regarding usage of C<each>, C<yield>, and
 C<emit>.
 
   #
   # For example, quickly wrap <a> tags around array elements:
   #
-  my $tagged = $object->collect( sub {
+  my $tagged = $object->each( sub {
     my $key = shift;
 
     print "Key $key is $object->{$key}\n";
 
     emit "<a name=\"$key\">$object->{$key}</a>";
   } );
-
-=cut
-
-sub collect {
-  my $self = shift;
-  my $sub  = shift;
-
-  return $self->keys()->collect($sub);
-}
-
-=pod
-
-=item * $self->each($sub)
-
-List iterator method. Runs $sub for each element in self; returns true
-on success.
-
-  my $hash = Devel::Ladybug::Hash->new(
-    foo => "uno",
-    bar => "dos",
-    rebar => "tres"
-  );
-
-  $hash->each( sub {
-    my $key = shift;
-
-    print "Have key: $key, value: $hash->{$key}\n";
-  } );
-
-  #
-  # Expected output:
-  #
-  # Have key: foo, value: uno
-  # Have key: bar, value: dos
-  # Have key: rebar, value: tres
-  #
 
 =cut
 
@@ -195,7 +159,7 @@ alpha sorted by key.
 sub values {
   my $self = shift;
 
-  return $self->keys()->collect(
+  return $self->keys()->each(
     sub {
       my $key = shift;
 
@@ -257,36 +221,45 @@ sub set {
 
 =pod
 
-=item * $self->size()
+=item * $self->count
 
 Returns the number of key/value pairs in self
 
 =cut
 
 ### imported function size() is redef'd
-no warnings "redefine";
+do {
+  no warnings "redefine";
 
-sub size {
+  sub size {
+    my $self = shift;
+
+    warn "depracated usage, please use count() instead";
+
+    return scalar( CORE::keys( %{$self} ) );
+  }
+};
+
+sub count {
   my $self = shift;
 
   return scalar( CORE::keys( %{$self} ) );
 }
 
-use warnings "redefine";
 ###
 
 =pod
 
 =item * $self->isEmpty()
 
-Returns true if self's size is 0, otherwise false.
+Returns true if self's count is 0, otherwise false.
 
 =cut
 
 sub isEmpty {
   my $self = shift;
 
-  return $self->size() ? false : true;
+  return $self->count() ? false : true;
 }
 
 =pod
@@ -342,7 +315,7 @@ following is the recommended approach:
   use YourApp::Example;
 
   create "YourApp::Example::Attrib" => {
-    exampleId => Devel::Ladybug::ExtID->assert( "YourApp::Example" ),
+    exampleId => YourApp::Example->assert,
 
     elementKey => Devel::Ladybug::Str->assert(
       #

@@ -63,14 +63,20 @@ package Devel::Ladybug::Double;
 use strict;
 use warnings;
 
+use Carp::Heavy;
 use Devel::Ladybug::Enum::Bool;
 
 use base qw| Devel::Ladybug::Float |;
 
 use overload
-  fallback => true,
   %Devel::Ladybug::Num::overload,
-  '*' => sub { my $a = shift; my $b = shift; return "$a" * "$b" };
+  fallback => true;
+
+use constant isDouble => sub {
+  Devel::Ladybug::Double->new(@_);
+
+  return true;
+};
 
 sub new {
   my $class   = shift;
@@ -79,7 +85,16 @@ sub new {
 
   my $self;
 
-  if ( defined $lesser ) {
+  if ( UNIVERSAL::isa($greater, "ARRAY") ) {
+    ( $greater, $lesser ) = @{ $greater };
+
+    Devel::Ladybug::Type::insist( $greater,
+      Devel::Ladybug::Type::isInt );
+    Devel::Ladybug::Type::insist( $lesser,
+      Devel::Ladybug::Type::isInt );
+
+    $self = join( ".", $greater, $lesser );
+  } elsif ( defined $lesser ) {
     Devel::Ladybug::Type::insist( $greater,
       Devel::Ladybug::Type::isInt );
     Devel::Ladybug::Type::insist( $lesser,
@@ -122,8 +137,7 @@ sub assert {
   my @rules = @_;
 
   my %parsed =
-    Devel::Ladybug::Type::__parseTypeArgs( Devel::Ladybug::Type::isFloat,
-    @rules );
+    Devel::Ladybug::Type::__parseTypeArgs( isDouble, @rules );
 
   $parsed{default} = "0.0000000000" if !exists $parsed{default};
   $parsed{columnType} ||= 'DOUBLE(30,10)';

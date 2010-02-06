@@ -10,7 +10,7 @@
 #
 package Devel::Ladybug::Enum::DBIType;
 
-use Devel::Ladybug::Enum qw| MySQL SQLite PostgreSQL |;
+use Devel::Ladybug::Enum qw| None MySQL SQLite PostgreSQL |;
 
 =head1 NAME
 
@@ -19,15 +19,13 @@ Devel::Ladybug::Enum::DBIType - Database type enumeration
 =head1 DESCRIPTION
 
 Uses L<Devel::Ladybug::Enum> to provide constants which are used to
-specify database types. The mix-in L<Devel::Ladybug::Persistence> class
-method C<__dbiType()> should be overridden in a subclass to return one
-of the constants in this package.
+specify database types. The class variable C<__useDbi> should return
+one of the constants in this package.
 
 =head1 SYNOPSIS
 
   create "YourApp::YourClass" => {
-    __useDbi  => true,
-    __dbiType => Devel::Ladybug::Enum::DBIType::<Type>,
+    __useDbi => Devel::Ladybug::Enum::DBIType::<Type>,
 
   };
 
@@ -35,17 +33,21 @@ of the constants in this package.
 
 =over 4
 
+=item * C<Devel::Ladybug::Enum::DBIType::None>
+
+Specify no DBI support (0)
+
 =item * C<Devel::Ladybug::Enum::DBIType::MySQL>
 
-Specify MySQL as a DBI type (0)
+Specify MySQL as a DBI type (1)
 
 =item * C<Devel::Ladybug::Enum::DBIType::SQLite>
 
-Specify SQLite as a DBI type (1)
+Specify SQLite as a DBI type (2)
 
 =item * C<Devel::Ladybug::Enum::DBIType::PostgreSQL>
 
-Specify PostgreSQL as a DBI type (2)
+Specify PostgreSQL as a DBI type (3)
 
 =back
 

@@ -36,8 +36,8 @@ inline keys:
     ...
   };
 
-More examples can be found in the L<Devel::Ladybug::Class> and
-L<Devel::Ladybug::Subtype> modules, and in the documentation for
+More information may be found in the L<Devel::Ladybug::Class> and
+L<Devel::Ladybug::Type> modules, and in the documentation for
 specific object classes.
 
 =head1 DESCRIPTION
@@ -56,9 +56,131 @@ L<Devel::Ladybug::Subtype> are auto-generated, and have no physical
 modules.
 
 Types may be modified by Subtypes via the C<subtype> function. See
-L<Devel::Ladybug::Subtype> for more details and a list of these rule
-types. Subtype subclasses are allocated from the definitions found in
-the %Devel::Ladybug::Type::RULES package variable.
+B<SUBTYPE ARGS>, in this document, for more details and a list of
+these rule types. Subtype subclasses are allocated from the definitions
+found in the %Devel::Ladybug::Type::RULES package variable.
+
+=head1 SUBTYPE ARGS
+
+Many subtype args affect database schema attributes. If changed
+after the table exists, the table should be re-created or altered.
+
+Instance variable assertions may be modified by providing the following
+arguments to subtype():
+
+=head2 columnType => $colType
+
+Override a database column type, eg "VARCHAR(128)".
+
+=head2 default => $value
+
+Set the default value for a given instance variable and database table
+column.
+
+Unless C<optional()> is given, the default value must also be included
+as an allowed value.
+
+=head2 deleteRefOpt => $option
+
+(MySQL only) Set the foreign constraint reference option for DELETE
+operations
+
+=head2 indexed => $bool
+
+Enable full-text indexing for this column. This is an experimental
+feature.
+
+=head2 min => $num
+
+Specifies the minimum allowed numeric value for a given instance
+variable.
+
+=head2 minSize => $num
+
+Specifies the minimum length or scalar size for a given instance
+variable.
+
+=head2 max => $num
+
+Specifies the maximum allowed numeric value for a given instance
+variable.
+
+=head2 maxSize => $num
+
+Specifies the maximum length or scalar size for a given instance
+variable.
+
+=head2 optional => $bool
+
+Permit a NULL (undef) value for a given instance variable.
+
+=head2 regex => qr/.../
+
+Specifies an optional regular expression which the value of the given
+instance variable must match.
+
+=head2 size => $num
+
+Specify that values must always be of a fixed size. The "size" is the
+value obtained through the built-in function C<length()> (string
+length) for Scalars, C<scalar(...)> (element count) for Arrays, and
+C<scalar keys()> (key count) for Hashes.
+
+=head2 sqlValue => $str, sqlInsertValue => $str, sqlUpdateValue => $str
+
+Override an asserted attribute's "insert" value when writing to a SQL
+database. This is useful if deriving a new value from existing table
+values at insertion time.
+
+C<::sqlInsertValue> and C<::sqlUpdateValue> override any provided value
+for ::sqlValue, but only on INSERT and UPDATE statements, respectively.
+
+  create "YourApp::Example" => {
+    foo => Devel::Ladybug::Int->assert(...,
+      subtype(
+        sqlValue => "(coalesce(max(foo),-1)+1)",
+      )
+    ),
+
+    # ...
+  };
+
+=head2 unique => $bool
+
+Specify UNIQUE database table columns.
+
+  create "YourApp::Example" => {
+    #
+    # Your must either specify true or false...
+    #
+    foo => Devel::Ladybug::Str->assert(...,
+      subtype(
+        unique => true
+      )
+    ),
+
+    #
+    # ... or specify a name for "joined" combinatory keys,
+    # as used in statement UNIQUE KEY ("foo","bar")
+    #
+    # To join with more than one key, provide an array reference
+    # of key names.
+    #
+    # For example, to make sure bar+foo is always unique:
+    #
+    bar => Devel::Ladybug::Str->assert(...,
+      subtype(
+        unique => "foo"
+      )
+    ),
+
+    # ...
+  };
+
+=head2 updateRefOpt => $option
+
+(MySQL only) Set the foreign constraint reference option for UPDATE
+operations
 
 =head1 TEST SUBS
 
@@ -121,10 +243,6 @@ Returns a CODE ref which tests the received value for CODE-ness.
 =item * isHash(Hash $value)
 
 Returns a CODE ref which tests the received value for hash-ness.
-
-=item * isIO(IO $io)
-
-Returns a CODE ref which tests the received value for IO-ness.
 
 =item * isRef(Ref $ref)
 
@@ -267,16 +385,6 @@ use constant isHash => sub {
   throw Devel::Ladybug::AssertFailed("Received value is not a Hash");
 };
 
-use constant isIO => sub {
-  my $io = shift;
-
-  if ( !defined($io) ) {
-    throw Devel::Ladybug::AssertFailed("IO ref must not be undef");
-  }
-
-  return true;
-};
-
 use constant isRef => sub {
   my $ref = shift;
 
@@ -323,31 +431,8 @@ methods would need to implement this interface.
 
 Instantiate a new Devel::Ladybug::Type object.
 
-Consumed args are as follows:
-
-  my $type = Devel::Ladybug::Type::MyType->new(
-    code         => ..., # CODE ref to test with
-    allowed      => ..., # ARRAY ref of allowed vals
-    default      => ..., # Literal default value
-    columnType   => ..., # Override column type string
-    sqlValue     => ..., # Override SQL insert value
-    unique       => ..., # true|false
-    optional     => ..., # true|false
-    serial       => ..., # true|false
-    min          => ..., # min numeric value
-    max          => ..., # max numeric value
-    size         => ..., # fixed length or scalar size
-    minSize      => ..., # min length or scalar size
-    maxSize      => ..., # max length or scalar size
-    regex        => ..., # optional regex which value must match
-    memberType   => ..., # Sub-assertion for arrays
-    memberClass  => ..., # Name of inline or external class
-    uom          => ..., # String label for human reference
-    descript     => ..., # Human-readable description
-    example      => ..., # An example value for human reference
-    deleteRefOpt => ..., # MySQL foreign constraint reference option
-    updateRefOpt => ..., # MySQL foreign constraint reference option
-  );
+This method is called internally when the C<assert> method is called
+for an object class. It does not typically need to be used directly.
 
 =back
 
@@ -365,8 +450,6 @@ sub new {
 
   return bless $self, $class;
 }
-
-=pod
 
 =head1 READ-ONLY ATTRIBUTES
 
@@ -740,8 +823,6 @@ sub test {
 # The subs test the received Subtype argument (if needed),
 # and return a sanitized value.
 #
-# eg. uom($argument)
-#
 # See the test() instance method, which performs test actions based on
 # assertion rules (you'll need to modify test() to handle new cases)
 #
@@ -876,6 +957,14 @@ our %RULES = (
     insist( $value, isStr ) && return $value;
   },
 
+  indexed => sub {
+    throw Devel::Ladybug::InvalidArgument(
+      "Extra arguments received by indexed()")
+      if @_ > 1;
+
+    return $_[0] ? true : false;
+  },
+
   unique => sub {
     my $value = shift;
 
@@ -913,12 +1002,6 @@ our %RULES = (
     }
 
     return $value;
-  },
-
-  uom => sub {
-    my $value = shift;
-
-    insist( $value, isStr ) && return $value;
   },
 );
 
@@ -1016,7 +1099,7 @@ sub __parseTypeArgs {
 sub subtype {
   my $rules = Devel::Ladybug::Hash->new(@_);
 
-  return $rules->collect(
+  return $rules->each(
     sub {
       my $key   = shift;
       my $value = $rules->{$key};

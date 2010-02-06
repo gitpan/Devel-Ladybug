@@ -1,3 +1,27 @@
+.407
+  - Add full-text search methods (thx DBIx::TextIndex)
+  - Much cleaner interface to ExtID - Persistent classes now assert
+    themselves as ExtID. ExtID->assert only needs to be used
+    directly in the case of self-referential tables.
+  - Documented new features
+  - List collectors revisited
+  - JSON may be used as a flatfile type, see Persistence docs
+  - Some methods are going away. These will warn for now:
+    - $class->__useYaml depracated. Use $class->__useFlatfile instead.
+    - $class->__dbiType depracated. Use $class->__useDbi instead.
+    - $array->collect depracated. Use $array->each instead.
+    - $array->collectWithIndex depracated. Use $array->each instead.
+    - $array->eachWithIndex depracated. Use $array->each instead.
+    - $array->size depracated. Use $array->count instead.
+    - $string->size depracated. Use $anyScalar->length instead.
+  - Some methods were added:
+    - $array->eachTuple is a new collector method for 2D arrays
+    - $class->count returns number of rows in the backing store
+    - $class->each is a buffered collector method for IDs in backing store
+    - $class->selectScalar($query) returns a number or string in a table
+    - $class->stream fetches id/name pairs in a table, in a buffered manner
+    - $class->tuples fetches id/name pairs in a table
+
 .406
   - Fix for detection of missing RCS binaries
 

@@ -15,7 +15,7 @@ sub columnNames {
 
   my $asserts = $class->asserts();
 
-  return $asserts->collect(
+  return $asserts->each(
     sub {
       my $attr = shift;
 
@@ -368,7 +368,7 @@ sub __dropTable {
     sub {
       my $key = shift;
 
-      my $elementClass = $class->elementClass($key);
+      my $elementClass = $class->__elementClass($key);
 
       return if !$elementClass;
 
@@ -379,6 +379,12 @@ sub __dropTable {
   my $table = $class->tableName();
 
   my $query = "DROP TABLE $table;\n";
+
+  my $index = $class->__textIndex;
+
+  if ( $index ) {
+    $index->delete if $index->_collection_table_exists;
+  }
 
   return $class->write($query);
 }
@@ -394,13 +400,19 @@ sub __createTable {
     sub {
       my $key = shift;
 
-      my $elementClass = $class->elementClass($key);
+      my $elementClass = $class->__elementClass($key);
 
       return if !$elementClass;
 
       $elementClass->__init();
     }
   );
+
+  my $index = $class->__textIndex;
+
+  if ( $index ) {
+    $index->initialize;
+  }
 
   return true;
 }
@@ -442,6 +454,30 @@ sub __allIdsStatement {
   );
 }
 
+sub __countStatement {
+  my $class = shift;
+
+  return sprintf(
+    q|
+      SELECT count(*) AS total FROM %s
+    |,
+    $class->__selectTableName(),
+  );
+}
+
+sub __tupleStatement {
+  my $class = shift;
+
+  return sprintf(
+    q|
+      SELECT %s, %s FROM %s ORDER BY __name
+    |,
+    $class->__primaryKey,
+    $class->__concatNameStatement,
+    $class->tableName
+  );
+}
+
 sub __wrapWithReconnect {
   my $class = shift;
   my $sub   = shift;
@@ -456,7 +492,7 @@ sub __updateColumnNames {
 
   my $priKey = $class->__primaryKey;
 
-  return $class->columnNames->collect(
+  return $class->columnNames->each(
     sub {
       my $name = shift;
 
@@ -478,7 +514,7 @@ sub __insertColumnNames {
   #
   if ( $class->asserts->{$priKey}->isa("Devel::Ladybug::Type::Serial") )
   {
-    return $class->columnNames->collect(
+    return $class->columnNames->each(
       sub {
         my $name = shift;
 
@@ -498,7 +534,7 @@ sub __selectColumnNames {
 
   my $asserts = $class->asserts();
 
-  return $class->columnNames->collect(
+  return $class->columnNames->each(
     sub {
       my $attr = shift;
 
@@ -724,7 +760,7 @@ modules
 
 =head1 DESCRIPTION
 
-This module should not be used directly.
+This module will typically be used indirectly.
 
 New DBI types should use this module as a base, and override methods as
 needed.
@@ -830,6 +866,10 @@ Returns the SQL used to generate a list of all record names
 =item * $class->__allIdsStatement()
 
 Returns the SQL used to generate a list of all record ids
+
+=item * $class->__countStatement()
+
+Returns the SQL used to return the number of rows in a table
 
 =item * $class->__doesIdExistStatement($id)
 

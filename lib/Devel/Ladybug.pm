@@ -11,7 +11,7 @@
 
 package Devel::Ladybug;
 
-our $VERSION = '0.406';
+our $VERSION = '0.407';
 
 use strict;
 use diagnostics;
@@ -81,7 +81,7 @@ __END__
 
 =head1 NAME
 
-Devel::Ladybug - Compact schema prototyping (formerly "OP")
+Devel::Ladybug - Data modeling framework
 
 =head1 SYNOPSIS
 
@@ -97,45 +97,40 @@ examples.
 
 =head1 DESCRIPTION
 
-Devel::Ladybug is a Perl 5 framework for prototyping schema-backed
-object classes.
+Devel::Ladybug is a framework for creating and working with data
+models.
 
-Using Devel::Ladybug's C<create()> function, the developer asserts
-rules for object classes. Devel::Ladybug's purpose is to automatically
-derive a database schema, handle object-relational mapping, and provide
-input validation for classes created in this manner.
+Using the C<create()> function, developers may assert rules for
+classes. Devel::Ladybug creates a permanent backing store for these
+classes, and can also handle object-relational mapping and input
+validation.
 
-Devel::Ladybug works with MySQL/InnoDB, PostgreSQL, SQLite, and YAML
-flatfile. If the backing store type for a class is not specified,
-Devel::Ladybug will try to automatically determine an appropriate type
-for the local system. If memcached is available, Devel::Ladybug will
-use it in conjunction with the permanent backing store.
-
-L<Devel::Ladybug::TLDR>
+Supported storage types are YAML or JSON flatfile, MySQL (InnoDB
+engine), PostgreSQL, and SQLite. Memcached, DBIx::TextIndex, and
+RCS may be used in conjunction with the permanent backing store.
 
 =head1 VERSION
 
-This documentation is for version B<0.406> of Devel::Ladybug.
+This documentation is for version B<0.407> of Devel::Ladybug.
 
 =head1 FRAMEWORK ASSUMPTIONS
 
-When using Devel::Ladybug, as with any framework, a number of things
-"just happen" by design. Trying to go against the flow of any of these
-base assumptions is not recommended.
+As with any framework, a number of things "just happen" by design.
+Trying to go against the flow of any of these base assumptions is
+not recommended.
 
 =head2 Configuration
 
 See CONFIGURATION AND ENVIRONMENT in this document.
 
-=head2 Classes Make Tables
+=head2 Table Creation
 
-Devel::Ladybug derives database schemas from the assertions contained
-in object classes, and creates the tables that it needs.
+Database schemas are derived from the assertions contained
+in object classes. Devel::Ladybug creates any needed tables.
 
 =head2 Default Base Attributes
 
-Database-backed Devel::Ladybug objects B<always> have "id", "name",
-"ctime", and "mtime".
+Persistent objects B<always> have "id", "name", "ctime", and "mtime".
 
 =over 4
 
@@ -211,9 +206,11 @@ asserted as B<optional> in the class prototype. To do so, provide
 
 Devel::Ladybug's core packages live under the Devel::Ladybug::
 namespace. Your classes should live in their own top-level namespace,
-e.g. "YourApp::". This will translate (in lower case) to the name of
-the app's database. The database name may be overridden by implementing
-class method C<databaseName>.
+e.g. "YourApp::YourClass".
+
+The top level namespace (eg "YourApp") translates, in lower case,
+to the name of the app's database. The database name may be overridden
+by implementing class method C<databaseName>.
 
 Namespace elements beyond the top-level translate to lower case table
 names. In cases of nested namespaces, Perl's "::" delineator is swapped
@@ -308,7 +305,7 @@ prototype object for its argument.
 =head2 IN METHODS
 
 Constructors and setter methods accept both native Perl 5 data types
-and their Devel::Ladybug object class equivalents. The setters will
+and their Devel::Ladybug object class equivalents. The setters 
 automatically handle any necessary conversion, or throw an exception if
 the received arg doesn't quack like a duck.
 
@@ -325,7 +322,7 @@ To wit, native types are OK for constructors:
   say $example->someString->class;
   # "Devel::Ladybug::Str"
 
-  say $example->someString->size;
+  say $example->someString->length;
   # "3"
 
   say $example->someString;
@@ -408,6 +405,8 @@ asserted as inline attributes.
 
 =item * L<Devel::Ladybug::Class::Dumper> - Introspection mix-in
 
+=item * L<Devel::Ladybug::Node> - Abstract stored object class
+
 =item * L<Devel::Ladybug::Object> - Abstract object class
 
 =item * L<Devel::Ladybug::Persistence> - Storage and retrieval mix-in
@@ -420,13 +419,13 @@ asserted as inline attributes.
 
 =item * L<Devel::Ladybug::Persistence::SQLite> - SQLite overrides
 
-=item * L<Devel::Ladybug::Node> - Abstract stored object class
-
-=item * L<Devel::Ladybug::Type> - Instance variable typing
+=item * L<Devel::Ladybug::Stream> - Buffered iterator for table rows
 
 =item * L<Devel::Ladybug::Scalar> - Base class for scalar values
 
 =item * L<Devel::Ladybug::Subtype> - Instance variable subtyping
+
+=item * L<Devel::Ladybug::Type> - Instance variable typing
 
 =back
 
@@ -467,9 +466,7 @@ This imports each of the symbols listed below.
 
 =item * :create
 
-This imports the C<create> and C<subtype> class prototyping functions;
-see L<Devel::Ladybug::Class>, L<Devel::Ladybug::Subtype>, and examples
-in this document.
+This imports the C<create> and C<subtype> class prototyping functions.
 
 =item * :bool
 
@@ -500,7 +497,7 @@ directory.
 To generate a first-time config for the local machine, copy the
 .ladybugrc (included with this distribution as C<ladybugrc-dist>) to
 the proper location, or run C<ladybug-conf> (also included with this
-distribution) as the user who will be running Devel::Ladybug.
+distribution) as the user running Devel::Ladybug.
 
 See L<Devel::Ladybug::Constants> for information regarding customizing
 and extending the local rc file.
@@ -590,6 +587,8 @@ the output from C<make test>)
   http://static.cpantesters.org/distro/D/Devel-Ladybug.html
 
 =head1 SEE ALSO
+
+L<Devel::Ladybug::TLDR>
 
 L<Devel::Ladybug::Class>
 

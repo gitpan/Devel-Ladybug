@@ -17,9 +17,9 @@ Devel::Ladybug::ID - Overloaded GUID object class
 
 =head1 DESCRIPTION
 
-Extends L<Devel::Ladybug::Scalar> and L<Data::GUID>
+Extends L<Devel::Ladybug::Scalar>.
 
-ID objects stringify as base64, which makes them as small as practical.
+ID objects stringify as base64.
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,7 @@ ID objects stringify as base64, which makes them as small as practical.
     my $id = Devel::Ladybug::ID->new();
 
     # ...
-  }
+  };
 
   #
   # Instantiate an existing GUID from base64
@@ -41,7 +41,7 @@ ID objects stringify as base64, which makes them as small as practical.
     my $id = Devel::Ladybug::ID->new("EO2JXisF3hGSSg+s3t/Aww==");
 
     # ...
-  }
+  };
 
 You may also instantiate from and translate between string, hex, or
 binary GUID forms using the constructors inherited from L<Data::GUID>.
@@ -64,31 +64,34 @@ use warnings;
 use Devel::Ladybug::Enum::Bool;
 
 use URI::Escape;
+use Data::GUID;
 
-use overload
-  fallback => true,
-  '""'     => sub { shift->as_base64() };
-
-use base qw| Data::GUID Devel::Ladybug::Scalar |;
+use base qw| Devel::Ladybug::Scalar |;
 
 sub new {
   my $class = shift;
   my $self  = shift;
 
+  my $guid;
+
   if ($self) {
     my $len = length("$self");
 
     if ( $len == 36 ) {
-      return Data::GUID::from_string( $class, $self );
+      $guid = Data::GUID->from_string($self);
     } elsif ( $len == 24 ) {
-      return Data::GUID::from_base64( $class, $self );
+      $guid = Data::GUID->from_base64($self);
     } else {
       Devel::Ladybug::AssertFailed->throw(
         "Unrecognized ID format: \"$self\"");
     }
+  } else {
+    $guid = Data::GUID->new(),
   }
 
-  return Data::GUID::new($class);
+  $self = $guid->as_base64;
+
+  return bless \$self, $class;
 }
 
 sub assert {
@@ -113,6 +116,12 @@ sub escaped {
   my $self = shift;
 
   return uri_escape( $self->as_base64 );
+}
+
+sub as_string {
+  my $self = shift;
+
+  return Data::GUID->from_base64($self)->as_string;
 }
 
 true;

@@ -277,7 +277,7 @@ sub escape {
 
   my $escaped;
 
-  if ( $self->isa("Devel::Ladybug::Hash") ) {
+  if ( $self->isa("Devel::Ladybug::Hash") && !$self->isa("Devel::Ladybug::Node") ) {
     $escaped = Devel::Ladybug::Hash->new;
 
     $self->each(
@@ -290,7 +290,7 @@ sub escape {
       }
     );
   } elsif ( $self->isa("Devel::Ladybug::Array") ) {
-    $escaped = $self->collect(
+    $escaped = $self->each(
       sub {
         if ( UNIVERSAL::isa( $_, "Devel::Ladybug::Object" ) ) {
           Devel::Ladybug::Array::yield( $_->escape() );

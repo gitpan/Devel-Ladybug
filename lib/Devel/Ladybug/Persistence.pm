@@ -1,4 +1,4 @@
-#
+
 # File: lib/Devel/Ladybug/Persistence.pm
 #
 # Copyright (c) 2009 TiVo Inc.
@@ -8,6 +8,24 @@
 # which accompanies this distribution, and is available at
 # http://opensource.org/licenses/cpl1.0.txt
 #
+package Devel::Ladybug::TextIndex;
+
+use strict;
+use warnings;
+
+use base qw| DBIx::TextIndex |;
+
+#
+#
+#
+sub remove {
+  my $self = shift;
+
+  return if ref( $_[0] ) && !$_->[0];
+
+  $self->SUPER::remove(@_);
+}
+
 package Devel::Ladybug::Persistence;
 
 =pod
@@ -20,17 +38,20 @@ Devel::Ladybug::Persistence - Serialization mix-in
 
 Configurable class mix-in for storable Devel::Ladybug objects.
 
-Provides transparent support for various serialization methods.
+This package will typically be used indirectly. Subclasses created
+with Devel::Ladybug's C<create> function will respond to these
+methods by default.
 
-=head1 SYNOPSIS
+Connection settings are controlled via C<.ladybugrc> (See
+L<Devel::Ladybug::Constants>), or may be overridden on a per-class
+basis (See C<__dbHost> or C<__dbUser>, in this document).
 
-This package should not typically be used directly. Subclasses created
-with Devel::Ladybug's C<create> function will respond to these methods
-by default.
+Database and table names are automatically derived, but may be
+overridden on a per-class basis (See C<databaseName> or C<tableName>,
+in this document).
 
-See __use<Feature>() and C<__dbiType()>, under the Class Callback
-Methods section, for directions on how to disable or augment backing
-store options when subclassing.
+See C<__use[Feature]>, in this document, for directions on how to
+disable or augment specific backing store options when subclassing.
 
 =cut
 
@@ -41,8 +62,8 @@ use warnings;
 # Third-party packages
 #
 use Cache::Memcached::Fast;
+use Carp::Heavy;
 use Clone qw| clone |;
-use Digest::SHA1 qw| sha1_hex |;
 use Error qw| :try |;
 use File::Copy;
 use File::Path;
@@ -65,7 +86,9 @@ use Devel::Ladybug::Constants qw|
   rcsBindir rcsDir
   |;
 use Devel::Ladybug::Enum::DBIType;
+use Devel::Ladybug::Enum::Flatfile;
 use Devel::Ladybug::Exceptions;
+use Devel::Ladybug::Stream;
 use Devel::Ladybug::Utility;
 
 #
@@ -153,16 +176,16 @@ Reconnects to database, if necessary.
     my $class = shift;
 
     my $query = sprintf(
-      q| SELECT * FROM %s |,
+      q| SELECT id FROM %s where foo like "%bar%" |,
       $class->tableName()
     );
 
     my $sth = $class->query($query);
 
-    while ( my $object = $sth->fetchrow_hashref() ) {
-      $class->__marshal($object);
+    while ( my ( $id ) = $sth->fetchrow_array() ) {
+      my $obj = $class->load($id);
 
-      # Stuff ...
+      # ...
     }
 
     $sth->finish();
@@ -174,8 +197,7 @@ sub query {
   my $class = shift;
   my $query = shift;
 
-  return $class->__wrapWithReconnect(
-    sub { return $class->__query($query) } );
+  return $class->__wrapWithReconnect( sub { return $class->__query($query) } );
 }
 
 =pod
@@ -204,8 +226,110 @@ sub write {
   my $class = shift;
   my $query = shift;
 
-  return $class->__wrapWithReconnect(
-    sub { return $class->__write($query) } );
+  return $class->__wrapWithReconnect( sub { return $class->__write($query) } );
+}
+
+=pod
+
+=item * $class->search($hash)
+
+Wrapper to L<DBIx::TextIndex>'s full-text C<search> method.
+
+Returns a L<Devel::Ladybug::Hash> of hit IDs, or C<undef> if the class
+contains no indexed fields.
+
+Attributes which are asserted as C<indexed> will be automatically
+added to the class's fulltext index at save time. This is not
+recommended for frequently changing data.
+
+  #
+  # In class YourApp/SearchExample.pm:
+  #
+  use Devel::Ladybug qw| :all |;
+
+  create "YourApp::SearchExample" => {
+    field1 => Devel::Ladybug::Str->assert(
+      subtype( indexed => true )
+    ),
+    field2 => Devel::Ladybug::Str->assert(
+      subtype( indexed => true )
+    ),
+  };
+
+Meanwhile...
+
+  #
+  # In caller, mysearch.pl:
+  #
+  use YourApp::SearchExample;
+
+  my $class = "YourApp::SearchExample";
+
+  #
+  # See DBIx::TextIndex
+  #
+  my $ids = $class->search({
+    field1 => '+andword -notword orword "phrase words"',
+    field2 => 'more words',
+  });
+
+  #
+  # Or, just provide a string:
+  #
+  # my $ids = $class->search("hello world");
+
+  $ids->each( sub {
+    my $id = shift;
+
+    my $obj = $class->load($id);
+  } );
+
+=cut
+
+sub search {
+  my $class = shift;
+  my $query = shift || return;
+
+  my $index = $class->__textIndex;
+
+  return if !$index;
+
+  if ( !ref($query) ) {
+    my $text = $query;
+    $query = {};
+    $class->__indexedFields->each(
+      sub {
+        my $field = shift;
+
+        $query->{ lc($field) } = $text;
+      }
+    );
+  } else {
+    my $lcQuery = {};
+
+    for my $field ( keys %{$query} ) {
+      $lcQuery->{ lc($field) } = $query->{field};
+    }
+
+    $query = $lcQuery;
+  }
+
+  return Devel::Ladybug::Hash->new( $index->search($query) );
+}
+
+=pod
+
+=item * $class->selectScalar($query)
+
+Returns the results of the received query, as a singular scalar value.
+
+=cut
+
+sub selectScalar {
+  my $class = shift;
+  my $query = shift;
+
+  return Devel::Ladybug::Scalar->new( $class->selectSingle($query)->shift );
 }
 
 =pod
@@ -221,7 +345,7 @@ sub selectBool {
   my $class = shift;
   my $query = shift;
 
-  return $class->selectSingle($query)->shift ? true : false;
+  return $class->selectScalar($query) ? true : false;
 }
 
 sub __selectBool {
@@ -330,8 +454,7 @@ sub selectMulti {
   my $results = Devel::Ladybug::Array->new();
 
   while ( my @row = $sth->fetchrow_array() ) {
-    $results->push(
-      @row > 1 ? Devel::Ladybug::Array->new(@row) : $row[0] );
+    $results->push( @row > 1 ? Devel::Ladybug::Array->new(@row) : $row[0] );
   }
 
   $sth->finish();
@@ -349,8 +472,7 @@ sub __selectMulti {
 
 =item * $class->allIds()
 
-Returns a Devel::Ladybug::Array of all object ids in the receiving
-class.
+Returns a L<Devel::Ladybug::Array> of all IDs in the receiving class.
 
   my $ids = $class->allIds();
 
@@ -377,7 +499,7 @@ class.
 sub allIds {
   my $class = shift;
 
-  if ( $class->__useYaml() && !$class->__useDbi() ) {
+  if ( $class->__useFlatfile() && !$class->__useDbi() ) {
     return $class->__fsIds();
   }
 
@@ -396,36 +518,180 @@ sub allIds {
 
 =pod
 
+=item * $class->count;
+
+Returns the number of rows in this class's backing store.
+
+=cut
+
+sub count {
+  my $class = shift;
+
+  if ( $class->__useFlatfile && !$class->__useDbi ) {
+    return $class->allIds->count;
+  }
+
+  return $class->selectScalar($class->__countStatement);
+}
+
+=pod
+
+=item * $class->stream
+
+Returns a L<Devel::Ladybug::Stream> of all IDs and Names in this table.
+
+  my $stream = $class->stream;
+
+  $stream->eachTuple( sub {
+    my $id = shift;
+    my $name = shift;
+
+    print "Have ID $id, Name $name\n";
+  } );
+
+=cut
+
+sub stream {
+  my $class = shift;
+  my $sub = shift;
+
+  my $stream = Devel::Ladybug::Stream->new($class);
+
+  return $stream;
+}
+
+=pod
+
+=item * $class->each
+
+Iterator for each ID in the current class.
+
+See collector usage in L<Devel::Ladybug::Array> docs.
+
+  $class->each( sub {
+    my $id = shift;
+
+    my $obj = $class->load($id);
+  } );
+
+=cut
+
+sub each {
+  my $class = shift;
+  my $sub = shift;
+
+  #
+  # Delegate for instance method usage:
+  #
+  return Devel::Ladybug::Hash::each($class, $sub) if $class->class;
+
+  if ( $class->__useFlatfile && !$class->__useDbi ) {
+    return $class->allIds->each($sub);
+  }
+
+  my $stream = $class->stream;
+
+  $stream->setQuery( $class->__allIdsStatement );
+
+  return $stream->eachTuple($sub);
+}
+
+=pod
+
+=item * $class->tuples
+
+Returns a L<Devel::Ladybug::Array> of all IDs and Names in this table.
+
+  my $tuples = $class->tuples;
+
+  $tuples->eachTuple( sub {
+    my $id = shift;
+    my $name = shift;
+
+    print "Have ID $id, Name $name\n";
+  } );
+
+=cut
+
+sub tuples {
+  my $class = shift;
+
+  if ( $class->__useFlatfile && !$class->__useDbi ) {
+    Devel::Ladybug::MethodIsAbstract->throw(
+      "tuples method not yet implemented for YAML backing stores"
+    );
+  }
+
+  return $class->selectMulti($class->__tupleStatement);
+}
+
+=pod
+
 =item * $class->memberClass($attribute)
 
-Only applicable for attributes which were asserted as
-L<Devel::Ladybug::ExtID()>.
+Only usable for foreign keys.
 
 Returns the class of object referenced by the named attribute.
-
-Example A:
 
   #
   # In a class prototype, there was an ExtID assertion:
   #
-  create "YourApp::Example" => {
-    userId => Devel::Ladybug::ExtID->assert( "YourApp::Example::User" ),
 
-    # Stuff ...
+  # ...
+  use YourApp::OtherClass;
+  use YourApp::AnotherClass;
+
+  create "YourApp::Example" => {
+    #
+    # OtherClass asserts ExtID by default:
+    #
+    userId => YourApp::OtherClass->assert,
+
+    #
+    # This is a one-to-many ExtID assertion:
+    #
+    categoryId => Devel::Ladybug::Array->assert(
+      YourApp::AnotherClass->assert
+    ),
+
+    # ...
   };
 
-  #
-  # Hypothetical object "Foo" has a "userId" attribute,
-  # which specifies an ID in a user table:
-  #
-  my $exa = YourApp::Example->spawn("Foo");
 
-  #
-  # Retrieve the external object by ID:
-  #
-  my $userClass = YourApp::Example->memberClass("userId");
+Meanwhile, in caller...
 
-  my $user = $userClass->load($exa->userId());
+  # ...
+  use YourApp::Example;
+
+  my $class = "YourApp::Example";
+
+  my $exa = $class->load("Foo");
+
+  do {
+    # Ask for the foreign class, eg "YourApp::OtherClass":
+    my $memberClass = $class->memberClass("userId");
+
+    # Use the persistence methods in the foreign class:
+    my $user = $memberClass->load($exa->userId());
+
+    $user->print;
+  };
+
+One-to-many example:
+
+  do {
+    # Ask for the foreign class, eg "YourApp::AnotherClass":
+    my $memberClass = $class->memberClass("categoryId");
+
+    # Use the persistence methods in the foreign class:
+    $exa->categoryId->each( sub {
+      my $memberId = shift;
+
+      my $category = $memberClass->load($memberId);
+
+      $category->print;
+    } );
+  };
 
 =cut
 
@@ -436,7 +702,7 @@ sub memberClass {
   throw Devel::Ladybug::AssertFailed("$key is not a member of $class")
     if !$class->isAttributeAllowed($key);
 
-  my $type = $class->asserts->{$key}->memberClass;
+  my $type = $class->asserts->{$key}->externalClass;
 }
 
 =pod
@@ -453,13 +719,11 @@ sub doesIdExist {
 
   if ( $class->__useDbi ) {
     return $class->selectBool(
-      $class->__doesIdExistStatement(
-        $class->__primaryKeyClass->new($id)
-      )
-    );
+      $class->__doesIdExistStatement( $class->__primaryKeyClass->new($id) ) );
   } else {
-    my $path = join( "/",
-      $class->__basePath, Devel::Ladybug::ID->new($id)->as_string() );
+    my $path =
+      join( "/", $class->__basePath,
+      Devel::Ladybug::ID->new($id)->as_string() );
 
     return -e $path;
   }
@@ -590,8 +854,7 @@ sub idForName {
   my $class = shift;
   my $name  = shift;
 
-  return $class->selectSingle( $class->__idForNameStatement($name) )
-    ->shift;
+  return $class->selectSingle( $class->__idForNameStatement($name) )->shift;
 }
 
 =pod
@@ -609,8 +872,8 @@ sub nameForId {
   my $id    = shift;
 
   return $class->selectSingle(
-    $class->__nameForIdStatement( $class->__primaryKeyClass->new($id) )
-  )->shift;
+    $class->__nameForIdStatement( $class->__primaryKeyClass->new($id) ) )
+    ->shift;
 }
 
 =pod
@@ -672,7 +935,7 @@ sub quote {
 
 =item * $class->databaseName()
 
-Returns the name of the receiving class's database. Corresponds to  the
+Returns the name of the receiving class's database. Corresponds to the
 lower-cased first-level Perl namespace, unless overridden in subclass.
 
   do {
@@ -697,7 +960,7 @@ sub databaseName {
       $dbName =~ s/:.*//;
     }
 
-    $class->set("__databaseName", $dbName);
+    $class->set( "__databaseName", $dbName );
   }
 
   return $dbName;
@@ -755,100 +1018,6 @@ sub tableName {
 
 =pod
 
-=item * $class->elementClass($key);
-
-Returns the dynamic subclass used for an Array or Hash attribute.
-
-Instances of the element class represent rows in a linked table.
-
-  #
-  # File: Example.pm
-  #
-  create "YourApp::Example" => {
-    testArray => Devel::Ladybug::Array->assert( ... )
-
-  };
-
-  #
-  # File: testcaller.pl
-  #
-  my $elementClass = YourApp::Example->elementClass("testArray");
-
-  print "$elementClass\n"; # YourApp::Example::testArray
-
-In the above example, YourApp::Example::testArray is the name of the
-dynamic subclass which was allocated as a container for
-YourApp::Example's array elements.
-
-=cut
-
-sub elementClass {
-  my $class = shift;
-  my $key   = shift;
-
-  return if !$class->__useDbi;
-
-  my $elementClasses = $class->get("__elementClasses");
-
-  if ( !$elementClasses ) {
-    $elementClasses = Devel::Ladybug::Hash->new();
-
-    $class->set( "__elementClasses", $elementClasses );
-  }
-
-  if ( $elementClasses->{$key} ) {
-    return $elementClasses->{$key};
-  }
-
-  my $asserts = $class->asserts();
-
-  my $type = $asserts->{$key};
-
-  my $elementClass;
-
-  if ($type) {
-    my $base = $class->__baseAsserts();
-    delete $base->{name};
-
-    if ( $type->objectClass()->isa('Devel::Ladybug::Array') ) {
-      $elementClass = join( "::", $class, $key );
-
-      create $elementClass => {
-        __dbiType => $class->__dbiType,
-
-        name => Devel::Ladybug::Name->assert(
-          Devel::Ladybug::Type::subtype( optional => true )
-        ),
-        parentId     => Devel::Ladybug::ExtID->assert($class),
-        elementIndex => Devel::Ladybug::Int->assert(),
-        elementValue => $type->memberType()
-      };
-
-    } elsif ( $type->objectClass()->isa('Devel::Ladybug::Hash') ) {
-      $elementClass = join( "::", $class, $key );
-
-      my $memberClass = $class->memberClass($key);
-
-      create $elementClass => {
-        __dbiType => $class->__dbiType,
-
-        name => Devel::Ladybug::Name->assert(
-          Devel::Ladybug::Type::subtype( optional => true )
-        ),
-        parentId     => Devel::Ladybug::ExtID->assert($class),
-        elementKey   => Devel::Ladybug::Str->assert(),
-        elementValue => Devel::Ladybug::Str->assert(),
-      };
-    }
-  }
-
-  $elementClasses->{$key} = $elementClass;
-
-  return $elementClass;
-}
-
-=pod
-
 =item * $class->loadYaml($string)
 
 Load the received string containing YAML into an instance of the
@@ -872,7 +1041,11 @@ sub loadYaml {
   throw Devel::Ladybug::InvalidArgument("Empty YAML stream received")
     if !$yaml;
 
-  my $hash = YAML::Syck::Load($yaml);
+  my $hash;
+
+  eval {
+    $hash = YAML::Syck::Load($yaml) || die $@;
+  };
 
   throw Devel::Ladybug::DataConversionFailed($@) if $@;
 
@@ -941,7 +1114,6 @@ sub restore {
   return $self->revert($version);
 }
 
-
 =pod
 
 =back
@@ -954,59 +1126,71 @@ illustrate.
 
 =over 4
 
-=item * $class->__useYaml()
+=item * $class->__useFlatfile()
 
-Return a true value to maintain a YAML backend for all saved objects.
+Return a true value or constant value from
+L<Devel::Ladybug::Enum::Flatfile>, to maintain a flatfile backend for
+all saved objects.
 
 Default inherited value is auto-detected for the local system. Set
 class variable to override.
 
-YAML and DBI backing stores are not mutually exclusive. Classes may use
-either, both, or neither, depending on use case.
-
-Generally, one would use YAML if they are not also using DBI, and just
-wish to use a flatfile YAML backing store for all objects of a class:
+Flatfile and DBI backing stores are not mutually exclusive. Classes
+may use either, both, or neither, depending on use case.
 
   #
   # Flatfile backing store only-- no DBI:
   #
   create "YourApp::Example::NoDbi" => {
-    __useYaml => true,
+    __useFlatfile => true,
     __useDbi  => false,
   };
-
-The main reason to use both YAML and DBI would be to maintain RCS
-version archives for objects. When using YAML and DBI, Devel::Ladybug
-writes out a YAML file upon save, but uses the database for everything
-but version restores:
 
   #
   # Maintain version history, but otherwise use DBI for everything:
   #
   create "YourApp::Example::DbiPlusRcs" => {
-    __useYaml => true,
+    __useFlatfile => true,
     __useRcs  => true,
     __useDbi  => true,
   };
 
-Use C<__yamlHost> to enforce a master host for YAML/RCS archives.
+To use JSON format, use the constant value from
+L<Devel::Ladybug::Enum::Flatfile>.
+
+  #
+  # Javascript could handle these objects as input:
+  #
+  create "YourApp::Example::JSON" => {
+    __useFlatfile => Devel::Ladybug::Enum::Flatfile::JSON
+  };
+
+Use C<__yamlHost> to enforce a master flatfile host.
 
 =cut
 
 sub __useYaml {
   my $class = shift;
 
-  my $useYaml = $class->get("__useYaml");
+  warn "__useYaml is depracated, please use __useFlatfile";
 
-  if ( !defined $useYaml ) {
+  return $class->__useFlatfile;
+}
+
+sub __useFlatfile {
+  my $class = shift;
+
+  my $useFlatfile = $class->get("__useFlatfile");
+
+  if ( !defined $useFlatfile ) {
     my %args = $class->__autoArgs();
 
-    $useYaml = $args{"__useYaml"};
+    $useFlatfile = $args{"__useFlatfile"};
 
-    $class->set( "__useYaml", $useYaml );
+    $class->set( "__useFlatfile", $useFlatfile );
   }
 
-  return $useYaml;
+  return $useFlatfile;
 }
 
 =pod
@@ -1022,7 +1206,7 @@ __useRcs does nothing for classes which do not also use YAML. The RCS
 archive is derived from the physical files in the YAML backing store.
 
   create "YourApp::Example" => {
-    __useYaml => true,
+    __useFlatfile => true, # Must be YAML
     __useRcs => true
 
   };
@@ -1038,9 +1222,13 @@ sub __useRcs {
 
   my $use = $class->get("__useRcs");
 
-  if ( $use && !$class->__useYaml ) {
+  my $backend = $class->__useFlatfile;
+
+  if ( $use &&
+    ( !$backend || $backend != Devel::Ladybug::Enum::Flatfile::YAML )
+  ) {
     Devel::Ladybug::RuntimeError->throw(
-      "Using RCS without also using YAML has no effect");
+      "RCS requires a flatfile type of YAML");
   }
 
   return $use;
@@ -1062,9 +1250,9 @@ Defaults to the C<yamlHost> L<Devel::Ladybug::Constants> value (ships
 as C<undef>), but may be overridden on a per-class basis.
 
   create "YourApp::Example" => {
-    __useYaml  => true,
-    __useRcs   => true,
-    __yamlHost => "host023.example.com".
+    __useFlatfile  => true,
+    __useRcs       => true,
+    __yamlHost     => "host023.example.com".
 
   };
 
@@ -1082,42 +1270,6 @@ sub __yamlHost {
   }
 
   return $host;
-}
-
-=pod
-
-=item * $class->__useDbi()
-
-Returns a true value if the current class uses a SQL backing store,
-otherwise false.
-
-If __useDbi() returns true, the database type specified by __dbiType()
-will be used.  See __dbiType() for how to override the class's database
-type.
-
-Default inherited value is auto-detected for the local system. Set
-class variable to override.
-
-  create "YourApp::Example" => {
-    __useDbi => false
-  };
-
-=cut
-
-sub __useDbi {
-  my $class = shift;
-
-  my $useDbi = $class->get("__useDbi");
-
-  if ( !defined($useDbi) ) {
-    my %args = $class->__autoArgs();
-
-    $useDbi = $args{__useDbi};
-
-    $class->set( "__useDbi", $useDbi );
-  }
-
-  return $useDbi;
 }
 
 =pod
@@ -1165,23 +1317,16 @@ sub __useMemcached {
 
 =pod
 
-=item * $class->__dbiType()
-
-This method is unused if C<__useDbi> returns false.
-
-Returns the constant of the DBI adapter to be used. Applies only if
-$class->__useDbi() returns a true value. Override in subclass to
-specify the desired backing store.
+=item * $class->__useDbi
 
 Returns a constant from the L<Devel::Ladybug::Enum::DBIType>
-enumeration. See L<Devel::Ladybug::Enum::DBIType> for a list of
-supported constants.
+enumeration, which represents the DBI type to be used.
 
 Default inherited value is auto-detected for the local system. Set
 class variable to override.
 
   create "YourApp::Example" => {
-    __dbiType => Devel::Ladybug::Enum::DBIType::SQLite
+    __useDbi => Devel::Ladybug::Enum::DBIType::SQLite
   };
 
 =cut
@@ -1189,14 +1334,22 @@ class variable to override.
 sub __dbiType {
   my $class = shift;
 
-  my $type = $class->get("__dbiType");
+  warn "__dbiType is depracated, use __useDbi instead";
+
+  return $class->useDbi;
+}
+
+sub __useDbi {
+  my $class = shift;
+
+  my $type = $class->get("__useDbi");
 
   if ( !defined($type) ) {
     my %args = $class->__autoArgs();
 
-    $type = $args{__dbiType};
+    $type = $args{__useDbi};
 
-    $class->set( "__dbiType", $type );
+    $class->set( "__useDbi", $type );
   }
 
   return $type;
@@ -1210,24 +1363,21 @@ sub __autoArgs {
   return %createArgs if %createArgs;
 
   $createArgs{__useDbi}  = false;
-  $createArgs{__useYaml} = true;
-  $createArgs{__dbiType} = Devel::Ladybug::Enum::DBIType::SQLite;
+  $createArgs{__useFlatfile} = true;
 
   if ( $class->__supportsSQLite() ) {
-    $createArgs{__useDbi}  = true;
-    $createArgs{__useYaml} = false;
+    $createArgs{__useFlatfile} = false;
+    $createArgs{__useDbi} = Devel::Ladybug::Enum::DBIType::SQLite;
   }
 
   if ( $class->__supportsPostgreSQL() ) {
-    $createArgs{__useDbi}  = true;
-    $createArgs{__useYaml} = false;
-    $createArgs{__dbiType} = Devel::Ladybug::Enum::DBIType::PostgreSQL;
+    $createArgs{__useFlatfile} = false;
+    $createArgs{__useDbi} = Devel::Ladybug::Enum::DBIType::PostgreSQL;
   }
 
   if ( $class->__supportsMySQL() ) {
-    $createArgs{__useDbi}  = true;
-    $createArgs{__useYaml} = false;
-    $createArgs{__dbiType} = Devel::Ladybug::Enum::DBIType::MySQL;
+    $createArgs{__useFlatfile} = false;
+    $createArgs{__useDbi} = Devel::Ladybug::Enum::DBIType::MySQL;
   }
 
   return %createArgs;
@@ -1260,9 +1410,10 @@ sub __supportsMySQL {
     my $dsn = sprintf( 'DBI:mysql:database=%s;host=%s;port=%s',
       $dbname, $class->__dbHost, $class->__dbPort || 3306 );
 
-    my $dbh = DBI->connect(
-      $dsn, $class->__dbUser, $class->__dbPass, { RaiseError => 1 }
-    ) || die DBI->errstr;
+    my $dbh =
+      DBI->connect( $dsn, $class->__dbUser, $class->__dbPass,
+      { RaiseError => 1 } )
+      || die DBI->errstr;
 
     my $sth = $dbh->prepare("show tables") || die $dbh->errstr;
     $sth->execute || die $sth->errstr;
@@ -1287,12 +1438,12 @@ sub __supportsPostgreSQL {
     my $dsn = sprintf( 'DBI:Pg:database=%s;host=%s;port=%s',
       $dbname, $class->__dbHost, $class->__dbPort || 5432 );
 
-    my $dbh = DBI->connect(
-      $dsn, $class->__dbUser, $class->__dbPass, { RaiseError => 1 }
-    ) || die DBI->errstr;
+    my $dbh =
+      DBI->connect( $dsn, $class->__dbUser, $class->__dbPass,
+      { RaiseError => 1 } )
+      || die DBI->errstr;
 
-    my $sth =
-      $dbh->prepare("select count(*) from information_schema.tables")
+    my $sth = $dbh->prepare("select count(*) from information_schema.tables")
       || die $dbh->errstr;
 
     $sth->execute || die $sth->errstr;
@@ -1349,12 +1500,14 @@ sub __baseAsserts {
       ),
       mtime => Devel::Ladybug::DateTime->assert(
         Devel::Ladybug::Type::subtype(
-          descript   => "The last modified timestamp of this object", @dtArgs
+          descript => "The last modified timestamp of this object",
+          @dtArgs
         )
       ),
       ctime => Devel::Ladybug::DateTime->assert(
         Devel::Ladybug::Type::subtype(
-          descript   => "The creation timestamp of this object", @dtArgs
+          descript => "The creation timestamp of this object",
+          @dtArgs
         )
       ),
     );
@@ -1470,7 +1623,7 @@ sub __localLoad {
 
   if ( $class->__useDbi() ) {
     return $class->__loadFromDatabase($id);
-  } elsif ( $class->__useYaml() ) {
+  } elsif ( $class->__useFlatfile() ) {
     return $class->__loadYamlFromId($id);
   } else {
     throw Devel::Ladybug::MethodIsAbstract(
@@ -1590,17 +1743,17 @@ sub __marshal {
 
   my $asserts = $class->asserts();
 
-#
-# Re-assemble complex structures using data from linked tables.
-#
-# For arrays, "elementIndex" is the array index, and "elementValue"
-# is the actual element value. Each element is a row in the linked table.
-#
-# For hashes, "elementKey" is the key, and "elementValue" is the value.
-# Each key/value pair is a row in the linked table.
-#
-# The parent object is referenced by id in parentId.
-#
+  #
+  # Re-assemble complex structures using data from linked tables.
+  #
+  # For arrays, "elementIndex" is the array index, and "elementValue"
+  # is the actual element value. Each element is a row in the linked table.
+  #
+  # For hashes, "elementKey" is the key, and "elementValue" is the value.
+  # Each key/value pair is a row in the linked table.
+  #
+  # The parent object is referenced by id in parentId.
+  #
   $asserts->each(
     sub {
       my $key = $_;
@@ -1609,7 +1762,7 @@ sub __marshal {
 
       if ($type) {
         if ( $type->objectClass()->isa('Devel::Ladybug::Array') ) {
-          my $elementClass = $class->elementClass($key);
+          my $elementClass = $class->__elementClass($key);
 
           my $array = $type->objectClass()->new();
 
@@ -1646,7 +1799,7 @@ sub __marshal {
           $self->{$key} = $array;
 
         } elsif ( $type->objectClass()->isa('Devel::Ladybug::Hash') ) {
-          my $elementClass = $class->elementClass($key);
+          my $elementClass = $class->__elementClass($key);
 
           my $hash = $type->objectClass()->new();
 
@@ -1670,8 +1823,7 @@ sub __marshal {
 
             $element = $elementClass->__marshal($element);
 
-            $hash->{ $element->elementKey() } =
-              $element->elementValue();
+            $hash->{ $element->elementKey() } = $element->elementValue();
           }
 
           $sth->finish();
@@ -1770,16 +1922,16 @@ sub __cacheKey {
     my $caller = caller();
 
     throw Devel::Ladybug::InvalidArgument(
-"BUG (Check $caller): $class->__cacheKey(\$id) received undef for \$id"
-    );
+      "BUG (Check $caller): $class->__cacheKey(\$id) received undef for \$id" );
+  } elsif (
+    $class->asserts->{ $class->__primaryKey }->isa("Devel::Ladybug::ID")
+  ) {
+    return $id;
+  } else {
+    my $key = join( ':', $class, $id );
+
+    return $key;
   }
-
-  my $qid = join( '/', $class, $id );
-
-  my $key = sha1_hex($qid);
-  chomp($key);
-
-  return $key;
 }
 
 sub __write {
@@ -1793,8 +1945,7 @@ sub __write {
   if ($@) {
     my $err = $class->__dbh()->errstr() || $@;
 
-    Devel::Ladybug::DBQueryFailed->throw(
-      join( ': ', $class, $err, $query ) );
+    Devel::Ladybug::DBQueryFailed->throw( join( ': ', $class, $err, $query ) );
   }
 
   return $rows;
@@ -1805,8 +1956,7 @@ sub __query {
   my $query = shift;
 
   my $dbh = $class->__dbh()
-    || throw Devel::Ladybug::DBConnectFailed
-    "Unable to connect to database";
+    || throw Devel::Ladybug::DBConnectFailed "Unable to connect to database";
 
   my $sth;
 
@@ -1895,27 +2045,27 @@ active.
 sub __dbhKey {
   my $class = shift;
 
-  return join("_", $class->databaseName, $class->__dbiType);
+  return join( "_", $class->databaseName, $class->__useDbi );
 }
 
 sub __dbh {
   my $class = shift;
 
-  if ( !$class->__useDbi ) {
+  my $useDbi = $class->__useDbi;
+
+  if ( !$useDbi ) {
     Devel::Ladybug::RuntimeError->throw(
-      "BUG: $class was asked for its DBH, but it does not use DBI." );
+      "BUG: $class was asked for its DBH, but it does not use DBI.");
   }
 
   my $dbName = $class->databaseName();
-  my $dbKey = $class->__dbhKey();
+  my $dbKey  = $class->__dbhKey();
 
   $dbi ||= Devel::Ladybug::Hash->new();
   $dbi->{$dbKey} ||= Devel::Ladybug::Hash->new();
 
   if ( !$dbi->{$dbKey}->{$$} ) {
-    my $dbiType = $class->__dbiType();
-
-    if ( $dbiType == Devel::Ladybug::Enum::DBIType::MySQL ) {
+    if ( $useDbi == Devel::Ladybug::Enum::DBIType::MySQL ) {
       my %creds = (
         database => $dbName,
         host     => dbHost,
@@ -1926,12 +2076,12 @@ sub __dbh {
 
       $dbi->{$dbKey}->{$$} =
         Devel::Ladybug::Persistence::MySQL::connect(%creds);
-    } elsif ( $dbiType == Devel::Ladybug::Enum::DBIType::SQLite ) {
+    } elsif ( $useDbi == Devel::Ladybug::Enum::DBIType::SQLite ) {
       my %creds = ( database => join( '/', sqliteRoot, $dbName ) );
 
       $dbi->{$dbKey}->{$$} =
         Devel::Ladybug::Persistence::SQLite::connect(%creds);
-    } elsif ( $dbiType == Devel::Ladybug::Enum::DBIType::PostgreSQL ) {
+    } elsif ( $useDbi == Devel::Ladybug::Enum::DBIType::PostgreSQL ) {
       my %creds = (
         database => $dbName,
         host     => dbHost,
@@ -1944,10 +2094,7 @@ sub __dbh {
         Devel::Ladybug::Persistence::PostgreSQL::connect(%creds);
     } else {
       throw Devel::Ladybug::InvalidArgument(
-        sprintf(
-          'Unknown DBI Type %s returned by class %s',
-          $dbiType, $class
-        )
+        sprintf( 'Unknown DBI Type %s returned by class %s', $useDbi, $class )
       );
     }
   }
@@ -1976,14 +2123,14 @@ sub __loadYamlFromId {
   my $class = shift;
   my $id    = shift;
 
-  if ( UNIVERSAL::isa( $id, "Data::GUID" ) ) {
+  if ( UNIVERSAL::can( $id, "as_string" ) ) {
     $id = $id->as_string();
   }
 
   my $joinStr = ( $class->__basePath() =~ /\/$/ ) ? '' : '/';
 
-  my $self = $class->__loadYamlFromPath(
-    join( $joinStr, $class->__basePath(), $id ) );
+  my $self =
+    $class->__loadYamlFromPath( join( $joinStr, $class->__basePath(), $id ) );
 
   # $self->set( $class->__primaryKey(), $id );
 
@@ -2007,10 +2154,15 @@ sub __loadYamlFromPath {
   if ( -e $path ) {
     my $yaml = $class->__getSourceByPath($path);
 
-    return $class->loadYaml($yaml);
+    my $backend = $class->__useFlatfile;
+
+    if ( $backend == Devel::Ladybug::Enum::Flatfile::JSON ) {
+      return $class->loadJson($yaml);
+    } else {
+      return $class->loadYaml($yaml);
+    }
   } else {
-    throw Devel::Ladybug::FileAccessError(
-      "Path $path does not exist on disk");
+    throw Devel::Ladybug::FileAccessError("Path $path does not exist on disk");
   }
 }
 
@@ -2100,7 +2252,7 @@ sub __checkYamlHost {
   #
   # See if we are on the correct host before proceeding...
   #
-  if ( $class->__useYaml() ) {
+  if ( $class->__useFlatfile() ) {
     my $yamlHost = $class->__yamlHost();
 
     if ($yamlHost) {
@@ -2108,8 +2260,7 @@ sub __checkYamlHost {
 
       if ( $thisHost ne $yamlHost ) {
         Devel::Ladybug::WrongHost->throw(
-          "YAML archives must be saved on host $yamlHost, not $thisHost"
-        );
+          "YAML archives must be saved on host $yamlHost, not $thisHost" );
       }
     }
   }
@@ -2134,6 +2285,7 @@ sub __init {
 
   if ( $class->__useRcs ) {
     if ( $^O eq 'openbsd' ) {
+
       #
       # XXX Contacted OpenRCS author re: arch dir probs, will fix this later
       #
@@ -2171,27 +2323,64 @@ sub __init {
     $alreadyWarnedForMemcached++;
   }
 
+  if ( !$class->__useDbi ) {
+    return;
+  }
+
   #
   # Initialize classes for inline elements
   #
   my $asserts = $class->asserts;
+
+  my $indexed = Devel::Ladybug::Array->new;
 
   $asserts->each(
     sub {
       my $key    = shift;
       my $assert = $asserts->{$key};
 
-      return
-        if !$assert->isa("Devel::Ladybug::Type::Array")
-          && !$assert->isa("Devel::Ladybug::Type::Hash");
+      if ( $assert->indexed ) {
+        $indexed->push($key);
+      }
 
-      $class->elementClass($key);
+      if ( $assert->isa("Devel::Ladybug::Type::Array")
+        || $assert->isa("Devel::Ladybug::Type::Hash") )
+      {
+        $class->__elementClass($key);
+      }
     }
   );
+
+  #
+  #
+  #
+  if ( $indexed->count > 0 ) {
+    my $index = Devel::Ladybug::TextIndex->new(
+      {
+        index_dbh  => $class->__dbh,
+        collection => join( "_", $class->tableName, "idx" ),
+        doc_fields => $indexed->each(
+          sub {
+            my $field = shift;
+
+            Devel::Ladybug::Array::yield( lc($field) );
+          }
+        ),
+      }
+    );
+
+    $class->set( "__textIndex",     $index );
+    $class->set( "__indexedFields", $indexed );
+  }
 
   return true;
 }
 
+sub __textIndex {
+  my $class = shift;
+
+  return $class->get("__textIndex");
+}
 
 =pod
 
@@ -2206,7 +2395,6 @@ be used.
   # Set as class variables in the prototype:
   #
   create "YourApp::YourClass" => {
-    __dbiType => Devel::Ladybug::Enum::DBIType::MySQL,
     __dbUser => "user",
     __dbPass => "pass",
     __dbHost => "example.com",
@@ -2214,9 +2402,8 @@ be used.
 
   };
 
-
   #
-  # Set at runtime, such as from apache startup:
+  # Or, set at runtime (such as from apache startup):
   #
   my $class = "YourApp::YourClass";
 
@@ -2227,13 +2414,12 @@ be used.
 
 =cut
 
-
 sub __dbUser {
   my $class = shift;
 
   if ( scalar(@_) ) {
     my $newValue = shift;
-    $class->set("__dbUser", $newValue);
+    $class->set( "__dbUser", $newValue );
   }
 
   return $class->get("__dbUser") || dbUser;
@@ -2244,7 +2430,7 @@ sub __dbPass {
 
   if ( scalar(@_) ) {
     my $newValue = shift;
-    $class->set("__dbPass", $newValue);
+    $class->set( "__dbPass", $newValue );
   }
 
   return $class->get("__dbPass") || dbPass;
@@ -2255,7 +2441,7 @@ sub __dbHost {
 
   if ( scalar(@_) ) {
     my $newValue = shift;
-    $class->set("__dbHost", $newValue);
+    $class->set( "__dbHost", $newValue );
   }
 
   return $class->get("__dbHost") || dbHost;
@@ -2266,12 +2452,105 @@ sub __dbPort {
 
   if ( scalar(@_) ) {
     my $newValue = shift;
-    $class->set("__dbPort", $newValue);
+    $class->set( "__dbPort", $newValue );
   }
 
   return $class->get("__dbPort") || dbPort;
 }
 
+=pod
+
+=item * $class->__elementClass($key);
+
+Returns the dynamic subclass used for an Array or Hash attribute.
+
+Instances of the element class represent rows in a linked table.
+
+  #
+  # File: Example.pm
+  #
+  create "YourApp::Example" => {
+    testArray => Devel::Ladybug::Array->assert( ... )
+
+  };
+
+  #
+  # File: testcaller.pl
+  #
+  my $elementClass = YourApp::Example->__elementClass("testArray");
+
+  print "$elementClass\n"; # YourApp::Example::testArray
+
+In the above example, YourApp::Example::testArray is the name of the
+dynamic subclass which was allocated as a container for
+YourApp::Example's array elements.
+
+=cut
+
+sub __elementClass {
+  my $class = shift;
+  my $key   = shift;
+
+  return if !$class->__useDbi;
+
+  my $elementClasses = $class->get("__elementClasses");
+
+  if ( !$elementClasses ) {
+    $elementClasses = Devel::Ladybug::Hash->new();
+
+    $class->set( "__elementClasses", $elementClasses );
+  }
+
+  if ( $elementClasses->{$key} ) {
+    return $elementClasses->{$key};
+  }
+
+  my $asserts = $class->asserts();
+
+  my $type = $asserts->{$key};
+
+  my $elementClass;
+
+  if ($type) {
+    my $base = $class->__baseAsserts();
+    delete $base->{name};
+
+    if ( $type->objectClass()->isa('Devel::Ladybug::Array') ) {
+      $elementClass = join( "::", $class, $key );
+
+      create $elementClass => {
+        __useDbi => $class->__useDbi,
+
+        name => Devel::Ladybug::Name->assert(
+          Devel::Ladybug::Type::subtype( optional => true )
+        ),
+        parentId     => $class->assert,
+        elementIndex => Devel::Ladybug::Int->assert,
+        elementValue => $type->memberType,
+      };
+
+    } elsif ( $type->objectClass()->isa('Devel::Ladybug::Hash') ) {
+      $elementClass = join( "::", $class, $key );
+
+      my $memberClass = $class->memberClass($key);
+
+      create $elementClass => {
+        __useDbi => $class->__useDbi,
+
+        name => Devel::Ladybug::Name->assert(
+          Devel::Ladybug::Type::subtype( optional => true )
+        ),
+        parentId     => $class->assert,
+        elementKey   => Devel::Ladybug::Str->assert,
+        elementValue => Devel::Ladybug::Str->assert,
+      };
+    }
+  }
+
+  $elementClasses->{$key} = $elementClass;
+
+  return $elementClass;
+}
 
 =pod
 
@@ -2370,13 +2649,14 @@ sub remove {
         if !$type->objectClass->isa("Devel::Ladybug::Array")
           && !$type->objectClass->isa("Devel::Ladybug::Hash");
 
-      my $elementClass = $class->elementClass($key);
+      my $elementClass = $class->__elementClass($key);
 
       next if !$elementClass;
 
       $elementClass->write(
-        sprintf 'DELETE FROM %s WHERE %s = %s',
-        $elementClass->tableName, $class->__elementParentKey, $class->quote( $self->key ) );
+        sprintf 'DELETE FROM %s WHERE %s = %s', $elementClass->tableName,
+        $class->__elementParentKey,             $class->quote( $self->key )
+      );
     }
 
     #
@@ -2391,18 +2671,18 @@ sub remove {
       #
       # If this happens, freak out.
       #
-      throw Devel::Ladybug::TransactionFailed(
-        "COMMIT failed on remove");
+      throw Devel::Ladybug::TransactionFailed("COMMIT failed on remove");
     }
   }
 
-  if ( $memd && $class->__useMemcached() ) {
-    my $key = $class->__cacheKey( $self->key() );
+  $self->_removeFromMemcached;
 
-    $memd->delete($key);
+  my $index = $class->__textIndex;
+  if ($index) {
+    $self->_removeFromTextIndex($index);
   }
 
-  if ( $class->__useYaml() ) {
+  if ( $class->__useFlatfile() ) {
     $self->_fsDelete();
   }
 
@@ -2509,51 +2789,6 @@ sub key {
 
 =pod
 
-=item * $self->memberInstances($key)
-
-Only applicable for attributes which were asserted as C<ExtID()>.
-
-Returns a Devel::Ladybug::Array of objects referenced by the named
-attribute.
-
-Equivalent to using C<load()> on the class returned by class method
-C<memberClass()>, for each ID in the relationship.
-
-  my $exa = YourApp::Example->spawn("Foo");
-
-  my $users = $exa->memberInstances("userId");
-
-=cut
-
-sub memberInstances {
-  my $self = shift;
-  my $key  = shift;
-
-  my $instances = Devel::Ladybug::Array->new();
-
-  my $memberClass = $self->class()->memberClass($key);
-
-  return $instances if !defined $memberClass;
-
-  my $extId = $self->get($key);
-
-  return $instances if !defined $extId;
-
-  my $type = $self->class()->asserts()->{$key};
-
-  if ( $type && ref($type) eq 'Devel::Ladybug::Type::Array' ) {
-    for ( @{ $self->{$key} } ) {
-      $instances->push( $memberClass->load($_) );
-    }
-  } else {
-    $instances->push( $memberClass->load($extId) );
-  }
-
-  return $instances;
-}
-
-=pod
-
 =item * $self->setIdsFromNames($attr, @names)
 
 Convenience setter for attributes which contain either an ExtID or an
@@ -2606,15 +2841,14 @@ sub setIdsFromNames {
     #
 
   } else {
-    Devel::Ladybug::InvalidArgument->throw(
-      "$attr does not represent an ExtID");
+    Devel::Ladybug::InvalidArgument->throw("$attr does not represent an ExtID");
   }
 
   my $names = Devel::Ladybug::Array->new(@names);
 
   my $extClass = $type->externalClass;
 
-  my $newIds = $names->collect(
+  my $newIds = $names->each(
     sub {
       my $obj = $extClass->spawn($_);
 
@@ -2724,7 +2958,7 @@ Generates a new ID for the current object. Default is GUID-style.
   _newId => sub {
     my $self = shift;
 
-    return Devel::Ladybug::Utility::newId();
+    return Devel::Ladybug::Utility::randstr();
   }
 
 =cut
@@ -2846,9 +3080,13 @@ sub _localSave {
       }
     } else {
       throw Devel::Ladybug::TransactionFailed(
-        "Save failed - $details\n  "
-          . $Devel::Ladybug::Persistence::errstr );
+        "Save failed - $details\n  " . $Devel::Ladybug::Persistence::errstr );
     }
+  }
+
+  my $index = $class->__textIndex;
+  if ($index) {
+    $self->_saveToTextIndex($index);
   }
 
   return $saved;
@@ -2900,7 +3138,7 @@ sub _localSaveInsideTransaction {
           if !$type->objectClass->isa("Devel::Ladybug::Array")
             && !$type->objectClass->isa("Devel::Ladybug::Hash");
 
-        my $elementClass = $class->elementClass($key);
+        my $elementClass = $class->__elementClass($key);
 
         $elementClass->write(
           sprintf 'DELETE FROM %s WHERE %s = %s',
@@ -2951,18 +3189,9 @@ sub _localSaveInsideTransaction {
   }
 
   #
-  # Remove the cached object, if using Memcached
-  #
-  if ( $class->__useMemcached() && $memd ) {
-    my $key = $class->__cacheKey( $self->key() );
-
-    $memd->delete($key);
-  }
-
-  #
   # Update the YAML backing store if using YAML
   #
-  if ( $class->__useYaml() ) {
+  if ( $class->__useFlatfile() ) {
     my $path = $self->_path();
 
     my $useRcs = $class->__useRcs();
@@ -3021,11 +3250,84 @@ sub _saveToMemcached {
   my $cacheTTL = $class->__useMemcached();
 
   if ( $memd && $cacheTTL ) {
-    return $memd->set( $class->__cacheKey( $self->id ), $self,
-      $cacheTTL );
+    $self->_removeFromMemcached;
+
+    my $key = $class->__cacheKey( $self->key() );
+
+    return $memd->set( $key, $self, $cacheTTL );
   }
 
   return;
+}
+
+=pod
+
+=item * $self->_saveToTextIndex
+
+Adds indexed values to this class's DBIx::TextIndex collection
+
+=cut
+
+sub _saveToTextIndex {
+  my $self  = shift;
+  my $index = shift;
+
+  return if !$self->exists;
+  return if !$index;
+
+  my $save = {};
+
+  $self->class->__indexedFields->each(
+    sub {
+      my $field = shift;
+
+      $save->{ lc($field) } = $self->{$field};
+    }
+  );
+
+  my $key = $self->key;
+
+  $self->_removeFromTextIndex($index);
+
+  $index->add( $key => $save );
+}
+
+=pod
+
+=item * $self->_removeFromTextIndex
+
+Removes indexed values from this class's DBIx::TextIndex collection
+
+=cut
+
+sub _removeFromTextIndex {
+  my $self  = shift;
+  my $index = shift;
+
+  return if !$self->exists;
+  return if !$index;
+
+  return $index->remove( $self->key );
+}
+
+=pod
+
+=item * $self->_removeFromMemcached
+
+Removes self's cached entry in memcached
+
+=cut
+
+sub _removeFromMemcached {
+  my $self = shift;
+
+  my $class = $self->class;
+
+  if ( $memd && $class->__useMemcached() ) {
+    my $key = $class->__cacheKey( $self->key() );
+
+    $memd->delete($key);
+  }
 }
 
 =pod
@@ -3060,9 +3362,7 @@ sub _updateRecord {
     #
     # If the ID was database-assigned (auto-increment), update self:
     #
-    if (
-      $class->asserts->{$priKey}->isa("Devel::Ladybug::Type::Serial") )
-    {
+    if ( $class->asserts->{$priKey}->isa("Devel::Ladybug::Type::Serial") ) {
       my $lastId =
         $class->__dbh->last_insert_id( undef, undef, $class->tableName,
         $priKey );
@@ -3138,11 +3438,10 @@ sub _path {
 
   my @caller = caller();
 
-  Devel::Ladybug::PrimaryKeyMissing->throw(
-    "Self has no primary key set")
+  Devel::Ladybug::PrimaryKeyMissing->throw("Self has no primary key set")
     if !defined $key;
 
-  if ( UNIVERSAL::isa( $key, "Data::GUID" ) ) {
+  if ( UNIVERSAL::can( $key, "as_string" ) ) {
     $key = $key->as_string();
   }
 
@@ -3174,7 +3473,7 @@ sub _saveToPath {
   }
 
   my $id = $self->key();
-  if ( UNIVERSAL::isa( $id, "Data::GUID" ) ) {
+  if ( UNIVERSAL::can( $id, "as_string" ) ) {
     $id = $id->as_string();
   }
 
@@ -3191,7 +3490,15 @@ sub _saveToPath {
     }
   }
 
-  my $yaml = $self->toYaml();
+  my $backend = $class->__useFlatfile;
+
+  my $yaml;
+
+  if ( $backend == Devel::Ladybug::Enum::Flatfile::JSON ) {
+    $yaml = $self->toJson();
+  } else {
+    $yaml = $self->toYaml();
+  }
 
   open( TEMP, "> $tempPath" );
   print TEMP $yaml;
@@ -3223,8 +3530,8 @@ sub _rcsPath {
 
   my $joinStr = ( $class->__baseRcsPath() =~ /\/$/ ) ? '' : '/';
 
-  return sprintf( '%s%s',
-    join( $joinStr, $class->__baseRcsPath(), $key ), ',v' );
+  return
+    sprintf( '%s%s', join( $joinStr, $class->__baseRcsPath(), $key ), ',v' );
 }
 
 =pod

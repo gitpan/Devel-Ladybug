@@ -58,7 +58,14 @@ sub connect {
   my $dsn = sprintf( 'dbi:Pg:database=%s;host=%s;port=%s',
     $args{database}, $args{host}, $args{port} );
 
-  return DBI->connect( $dsn, $args{user}, $args{pass}, { RaiseError => 1 } );
+  my $dbh = DBI->connect( $dsn, $args{user}, $args{pass}, {
+    RaiseError => 1,
+    pg_server_prepare => 0,
+  } );
+
+  $dbh->do("set client_min_messages = 'warning'");
+
+  return $dbh;
 }
 
 =pod
@@ -196,10 +203,10 @@ sub __statementForColumn {
   my $datatype = $type->columnType || 'TEXT';
 
   if ( $datatype =~ /^INT/ ) {
-    warn "$datatype will be INT in Postgres";
+    warnOnce($datatype,"$datatype will be INT in Postgres");
     $datatype = "INT";
   } elsif ( $datatype =~ /^DOUBLE/ ) {
-    warn "$datatype will be FLOAT in Postgres";
+    warnOnce($datatype,"$datatype will be FLOAT in Postgres");
     $datatype = "FLOAT";
   }
 
@@ -282,7 +289,7 @@ sub __selectColumnNames {
 
   my $asserts = $class->asserts();
 
-  return $class->columnNames->collect(
+  return $class->columnNames->each(
     sub {
       my $attr = shift;
 
@@ -312,7 +319,7 @@ sub __updateColumnNames {
 
   my $priKey = $class->__primaryKey;
 
-  return $class->columnNames->collect(
+  return $class->columnNames->each(
     sub {
       my $name = shift;
 
@@ -333,7 +340,7 @@ sub __insertColumnNames {
   # Omit "id" from the SQL statement if we're using auto-increment
   #
   if ( $class->asserts->{$priKey}->isa("Devel::Ladybug::Type::Serial") ) {
-    return $class->columnNames->collect(
+    return $class->columnNames->each(
       sub {
         my $name = shift;
 
@@ -344,7 +351,7 @@ sub __insertColumnNames {
     );
 
   } else {
-    return $class->columnNames->collect( sub {
+    return $class->columnNames->each( sub {
       my $name = shift;
 
       Devel::Ladybug::Array::yield("\"$name\"");
@@ -362,6 +369,19 @@ sub __elementIndexKey {
   my $class = shift;
 
   return "\"elementIndex\"";
+}
+
+my $warned = { };
+
+sub warnOnce {
+  my $key = shift;
+  my $warning = shift;
+
+  return if exists $warned->{$key};
+
+  warn $warning;
+
+  $warned->{$key}++;
 }
 
 1;

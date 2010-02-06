@@ -342,9 +342,9 @@ sub isAttributeAllowed {
     if ( exists $asserts->{$key} ) {
       return true;
     } else {
-      my $caller = caller();
+      my ($caller,$pkg,$line) = caller();
       warn
-        "BUG (Check $caller): \"$key\" is not a member of \"$class\"";
+        "BUG (Check $caller:$line): \"$key\" is not a member of \"$class\"";
       return false;
     }
   } else {
@@ -450,16 +450,6 @@ sub assert {
     "You may not assert attributes for abstract class $class");
 }
 
-sub elementClass {
-  my $class = shift;
-  my $key   = shift;
-
-  #
-  # Fine for abstract method
-  #
-  return undef;
-}
-
 =pod
 
 =back
@@ -509,7 +499,7 @@ sub import {
 
     # ref($type->{$key}) !~ /Hash|Array/i;
 
-    $class->elementClass($key);
+    $class->__elementClass($key);
   }
 }
 
@@ -613,6 +603,16 @@ sub __assertClass {
   return $assertClass;
 }
 
+sub __elementClass {
+  my $class = shift;
+  my $key   = shift;
+
+  #
+  # Fine for abstract method
+  #
+  return undef;
+}
+
 =pod
 
 =back
@@ -637,8 +637,12 @@ sub get {
   my $class = $self->class();
 
   if ($class) {
-    throw Devel::Ladybug::RuntimeError("$key is not a member of $class")
-      if !$class->isAttributeAllowed($key);
+    if ( !$class->isAttributeAllowed($key) ) {
+      my ($caller,$pkg,$line) = caller();
+      Devel::Ladybug::RuntimeError->throw(
+        "BUG (Check $caller:$line): $self does not answer to $key"
+      );
+    }
 
     return $self->{$key};
   } else {
@@ -696,12 +700,12 @@ Removes all items, leaving self with zero elements.
     bar => "dos"
   );
 
-  print $object->size(); # 2
+  print $object->count(); # 2
   print "\n";
 
   $object->clear();
 
-  print $object->size(); # 0
+  print $object->count(); # 0
   print "\n";
 
 =cut
@@ -800,11 +804,11 @@ sub AUTOLOAD {
     if ( $receiver->can("__useDbi") && $receiver->__useDbi ) {
       my $delegate;
 
-      if ( $receiver->__dbiType == 0 ) {
+      if ( $receiver->__useDbi == 1 ) {
         $delegate = "Devel::Ladybug::Persistence::MySQL";
-      } elsif ( $receiver->__dbiType == 1 ) {
+      } elsif ( $receiver->__useDbi == 2 ) {
         $delegate = "Devel::Ladybug::Persistence::SQLite";
-      } elsif ( $receiver->__dbiType == 2 ) {
+      } elsif ( $receiver->__useDbi == 3 ) {
         $delegate = "Devel::Ladybug::Persistence::PostgreSQL";
       }
 
