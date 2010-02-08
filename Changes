@@ -1,3 +1,6 @@
+.408
+  - Misc minor bug and doc fixes
+
 .407
   - Add full-text search methods (thx DBIx::TextIndex)
   - Much cleaner interface to ExtID - Persistent classes now assert

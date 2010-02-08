@@ -1,4 +1,4 @@
-
+#
 # File: lib/Devel/Ladybug/Persistence.pm
 #
 # Copyright (c) 2009 TiVo Inc.
@@ -2312,8 +2312,6 @@ sub __init {
     }
   }
 
-  $class->__INIT();
-
   if (!$alreadyWarnedForMemcached
     && $class->__useMemcached
     && ( !$memd || !%{ $memd->server_versions } ) )
@@ -2326,6 +2324,8 @@ sub __init {
   if ( !$class->__useDbi ) {
     return;
   }
+
+  $class->__INIT();
 
   #
   # Initialize classes for inline elements

@@ -69,14 +69,6 @@ Devel::Ladybug Objects. Provides constructor, getters, setters,
 "Ruby-esque" collection, and other methods which one might expect an
 Array object to respond to.
 
-=head1 INHERITANCE
-
-This class inherits additional class and object methods from the
-following packages:
-
-L<Devel::Ladybug::Class> > L<Devel::Ladybug::Object> >
-Devel::Ladybug::Array
-
 =head1 SYNOPSIS
 
   use Devel::Ladybug::Array;

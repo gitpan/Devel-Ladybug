@@ -22,16 +22,6 @@ form an abstract base storable object class.
 Subclasses should override the class callback methods inherited from
 L<Devel::Ladybug::Persistence> to customize backing store options.
 
-=head1 INHERITANCE
-
-This class inherits additional class and object methods from the
-following packages:
-
-L<Devel::Ladybug::Class> > L<Devel::Ladybug::Object> >
-L<Devel::Ladybug::Hash> > Devel::Ladybug::Node
-
-L<Devel::Ladybug::Persistence> > Devel::Ladybug::Node
-
 =cut
 
 use strict;

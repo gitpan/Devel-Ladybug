@@ -59,8 +59,8 @@ do {
   %instancePrototype = (
     testArray    => [ "foo", "bar", "baz", "rebar", "rebaz" ],
     testBool     => true,
-    testDouble   => "1234.5678901",
-    testFloat    => 22 / 7,
+    testDouble   => 1234.5678901,
+    testFloat    => 3.14159265,
     testInt      => 23,
     testNum      => 42,
     testRule     => qr/foo/,

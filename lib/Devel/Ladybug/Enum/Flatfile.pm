@@ -14,7 +14,7 @@ use Devel::Ladybug::Enum qw| None YAML JSON XML |;
 
 =head1 NAME
 
-Devel::Ladybug::Enum::Flatfile - Database type enumeration
+Devel::Ladybug::Enum::Flatfile - Flatfile type enumeration
 
 =head1 DESCRIPTION
 

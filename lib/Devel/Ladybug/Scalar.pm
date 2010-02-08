@@ -46,14 +46,6 @@ Devel::Ladybug::Scalar - Scalar object class
 Extends L<Devel::Ladybug::Object> to handle Perl scalar values as
 Devel::Ladybug Objects.
 
-=head1 INHERITANCE
-
-This class inherits additional class and object methods from the
-following packages:
-
-L<Devel::Ladybug::Class> > L<Devel::Ladybug::Object> >
-Devel::Ladybug::Scalar
-
 =head1 SYNOPSIS
 
   use Devel::Ladybug::Scalar;

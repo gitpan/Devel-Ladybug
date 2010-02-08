@@ -21,13 +21,6 @@ Devel::Ladybug::Object - Abstract object class
 Base abstract object class for the Devel::Ladybug framework. Extends
 L<Devel::Ladybug::Class> with a constructor, getters, and setters.
 
-=head1 INHERITANCE
-
-This class inherits additional class and object methods from the
-following packages:
-
-L<Devel::Ladybug::Class> > Devel::Ladybug::Object
-
 =head1 PUBLIC CLASS METHODS
 
 =cut
