@@ -364,13 +364,17 @@ sub kickClassTires {
 
     ok( $ids = $class->search($query), "Full-text search" );
 
-    $ids->each( sub {
-      my $id = shift;
-      my $obj;
-      isa_ok( $obj = $class->load($id), $class );
+    ok( $ids && $ids->count > 0, "Search hit count is > 0" );
 
-      kickObjectTires($obj);
-    } );
+    if ( $ids ) {
+      $ids->each( sub {
+        my $id = shift;
+        my $obj;
+        isa_ok( $obj = $class->load($id), $class );
+
+        kickObjectTires($obj);
+      } );
+    }
   };
 
   my $i = 0;
@@ -428,7 +432,7 @@ sub kickObjectTires {
           ( $obj->{$key} == $instancePrototype{$key} )
            && ( $obj->{$key} ne "Bogus Crap" )
            && ( $obj->{$key} ne [ "Bogus Crap" ] ),
-          "$class: $key matches orig value"
+          "$class: $key '$obj->{$key}' matches orig value '$instancePrototype{$key}'"
         );
       }
 

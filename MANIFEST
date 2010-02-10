@@ -13,8 +13,6 @@ lib/Devel/Ladybug/Constants.pm
 lib/Devel/Ladybug/DateTime.pm
 lib/Devel/Ladybug/Double.pm
 lib/Devel/Ladybug/Enum/Bool.pm
-lib/Devel/Ladybug/Enum/DBIType.pm
-lib/Devel/Ladybug/Enum/Flatfile.pm
 lib/Devel/Ladybug/Enum.pm
 lib/Devel/Ladybug/Exceptions.pm
 lib/Devel/Ladybug/ExtID.pm
@@ -36,6 +34,7 @@ lib/Devel/Ladybug/Rule.pm
 lib/Devel/Ladybug/Runtime.pm
 lib/Devel/Ladybug/Scalar.pm
 lib/Devel/Ladybug/Serial.pm
+lib/Devel/Ladybug/StorageType.pm
 lib/Devel/Ladybug/Str.pm
 lib/Devel/Ladybug/Stream.pm
 lib/Devel/Ladybug/Subtype.pm

@@ -7,7 +7,6 @@ use DBI;
 use Error qw| :try |;
 
 use Devel::Ladybug::Enum::Bool;
-use Devel::Ladybug::Enum::DBIType;
 
 sub columnNames {
   my $class = shift;
@@ -747,7 +746,7 @@ modules
 
 =head1 SYNOPSIS
 
-  package Devel::Ladybug::Persistence::NewDBIType;
+  package Devel::Ladybug::Persistence::NewDriver;
 
   use strict;
   use warnings;

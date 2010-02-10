@@ -36,7 +36,6 @@ use constant DefaultSubclass => 'Devel::Ladybug::Node';
 
 use Error qw| :try |;
 use Devel::Ladybug::Enum::Bool;
-use Devel::Ladybug::Enum::DBIType;
 use Devel::Ladybug::Utility;
 use Scalar::Util qw| blessed reftype |;
 

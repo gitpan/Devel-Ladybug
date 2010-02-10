@@ -85,8 +85,7 @@ use Devel::Ladybug::Constants qw|
   memcachedHosts
   rcsBindir rcsDir
   |;
-use Devel::Ladybug::Enum::DBIType;
-use Devel::Ladybug::Enum::Flatfile;
+use Devel::Ladybug::StorageType;
 use Devel::Ladybug::Exceptions;
 use Devel::Ladybug::Stream;
 use Devel::Ladybug::Utility;
@@ -1129,7 +1128,7 @@ illustrate.
 =item * $class->__useFlatfile()
 
 Return a true value or constant value from
-L<Devel::Ladybug::Enum::Flatfile>, to maintain a flatfile backend for
+L<Devel::Ladybug::StorageType>, to maintain a flatfile backend for
 all saved objects.
 
 Default inherited value is auto-detected for the local system. Set
@@ -1156,13 +1155,13 @@ may use either, both, or neither, depending on use case.
   };
 
 To use JSON format, use the constant value from
-L<Devel::Ladybug::Enum::Flatfile>.
+L<Devel::Ladybug::StorageType>.
 
   #
   # Javascript could handle these objects as input:
   #
   create "YourApp::Example::JSON" => {
-    __useFlatfile => Devel::Ladybug::Enum::Flatfile::JSON
+    __useFlatfile => Devel::Ladybug::StorageType::JSON
   };
 
 Use C<__yamlHost> to enforce a master flatfile host.
@@ -1225,7 +1224,7 @@ sub __useRcs {
   my $backend = $class->__useFlatfile;
 
   if ( $use &&
-    ( !$backend || $backend != Devel::Ladybug::Enum::Flatfile::YAML )
+    ( !$backend || $backend != Devel::Ladybug::StorageType::YAML )
   ) {
     Devel::Ladybug::RuntimeError->throw(
       "RCS requires a flatfile type of YAML");
@@ -1319,14 +1318,14 @@ sub __useMemcached {
 
 =item * $class->__useDbi
 
-Returns a constant from the L<Devel::Ladybug::Enum::DBIType>
+Returns a constant from the L<Devel::Ladybug::StorageType>
 enumeration, which represents the DBI type to be used.
 
 Default inherited value is auto-detected for the local system. Set
 class variable to override.
 
   create "YourApp::Example" => {
-    __useDbi => Devel::Ladybug::Enum::DBIType::SQLite
+    __useDbi => Devel::Ladybug::StorageType::SQLite
   };
 
 =cut
@@ -1367,17 +1366,17 @@ sub __autoArgs {
 
   if ( $class->__supportsSQLite() ) {
     $createArgs{__useFlatfile} = false;
-    $createArgs{__useDbi} = Devel::Ladybug::Enum::DBIType::SQLite;
+    $createArgs{__useDbi} = Devel::Ladybug::StorageType::SQLite;
   }
 
   if ( $class->__supportsPostgreSQL() ) {
     $createArgs{__useFlatfile} = false;
-    $createArgs{__useDbi} = Devel::Ladybug::Enum::DBIType::PostgreSQL;
+    $createArgs{__useDbi} = Devel::Ladybug::StorageType::PostgreSQL;
   }
 
   if ( $class->__supportsMySQL() ) {
     $createArgs{__useFlatfile} = false;
-    $createArgs{__useDbi} = Devel::Ladybug::Enum::DBIType::MySQL;
+    $createArgs{__useDbi} = Devel::Ladybug::StorageType::MySQL;
   }
 
   return %createArgs;
@@ -2065,7 +2064,7 @@ sub __dbh {
   $dbi->{$dbKey} ||= Devel::Ladybug::Hash->new();
 
   if ( !$dbi->{$dbKey}->{$$} ) {
-    if ( $useDbi == Devel::Ladybug::Enum::DBIType::MySQL ) {
+    if ( $useDbi == Devel::Ladybug::StorageType::MySQL ) {
       my %creds = (
         database => $dbName,
         host     => dbHost,
@@ -2076,12 +2075,12 @@ sub __dbh {
 
       $dbi->{$dbKey}->{$$} =
         Devel::Ladybug::Persistence::MySQL::connect(%creds);
-    } elsif ( $useDbi == Devel::Ladybug::Enum::DBIType::SQLite ) {
+    } elsif ( $useDbi == Devel::Ladybug::StorageType::SQLite ) {
       my %creds = ( database => join( '/', sqliteRoot, $dbName ) );
 
       $dbi->{$dbKey}->{$$} =
         Devel::Ladybug::Persistence::SQLite::connect(%creds);
-    } elsif ( $useDbi == Devel::Ladybug::Enum::DBIType::PostgreSQL ) {
+    } elsif ( $useDbi == Devel::Ladybug::StorageType::PostgreSQL ) {
       my %creds = (
         database => $dbName,
         host     => dbHost,
@@ -2156,7 +2155,7 @@ sub __loadYamlFromPath {
 
     my $backend = $class->__useFlatfile;
 
-    if ( $backend == Devel::Ladybug::Enum::Flatfile::JSON ) {
+    if ( $backend == Devel::Ladybug::StorageType::JSON ) {
       return $class->loadJson($yaml);
     } else {
       return $class->loadYaml($yaml);
@@ -3494,7 +3493,7 @@ sub _saveToPath {
 
   my $yaml;
 
-  if ( $backend == Devel::Ladybug::Enum::Flatfile::JSON ) {
+  if ( $backend == Devel::Ladybug::StorageType::JSON ) {
     $yaml = $self->toJson();
   } else {
     $yaml = $self->toYaml();
