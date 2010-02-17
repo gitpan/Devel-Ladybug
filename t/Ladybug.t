@@ -22,7 +22,9 @@ BEGIN {
   $path = $tempdir->name;
 
   if ( !-d $path ) {
-    $nofs = "Couldn't find usable tempdir for testing";
+    warn "No usable tempdir for testing";
+
+    exit 1;
   }
 }
 
@@ -30,40 +32,36 @@ BEGIN {
 ##### Set up environment
 #####
 
-SKIP: {
-  skip( $nofs, 2 ) if $nofs;
+require_ok("Devel::Ladybug::Runtime");
 
-  require_ok("Devel::Ladybug::Runtime");
-  ok( Devel::Ladybug::Runtime->import($path), 'setup environment' );
-}
+ok( Devel::Ladybug::Runtime->import($path), 'setup environment' );
 
 do {
   %classPrototype = (
-    testArray =>
-      Devel::Ladybug::Array->assert( Devel::Ladybug::Str->assert() ),
-    testBool     => Devel::Ladybug::Bool->assert(),
-    testDouble   => Devel::Ladybug::Double->assert(),
-    testFloat    => Devel::Ladybug::Float->assert(),
-    testInt      => Devel::Ladybug::Int->assert(),
-    testNum      => Devel::Ladybug::Num->assert(),
-    testRule     => Devel::Ladybug::Rule->assert(),
-    testStr      => Devel::Ladybug::Str->assert(
+    testArray => Devel::Ladybug::Array->assert( Devel::Ladybug::Str->assert() ),
+    testBool  => Devel::Ladybug::Bool->assert(),
+    testDouble => Devel::Ladybug::Double->assert(),
+    testFloat  => Devel::Ladybug::Float->assert(),
+    testInt    => Devel::Ladybug::Int->assert(),
+    testNum    => Devel::Ladybug::Num->assert(),
+    testRule   => Devel::Ladybug::Rule->assert(),
+    testStr    => Devel::Ladybug::Str->assert(
       Devel::Ladybug::Type::subtype( indexed => true ),
     ),
-    testStr2      => Devel::Ladybug::Str->assert(
+    testStr2 => Devel::Ladybug::Str->assert(
       Devel::Ladybug::Type::subtype( indexed => true ),
     ),
     testTimeSpan => Devel::Ladybug::TimeSpan->assert(),
   );
 
   %instancePrototype = (
-    testArray    => [ "foo", "bar", "baz", "rebar", "rebaz" ],
-    testBool     => true,
-    testDouble   => 1234.5678901,
-    testFloat    => 3.14159265,
-    testInt      => 23,
-    testNum      => 42,
-    testRule     => qr/foo/,
+    testArray  => [ "foo", "bar", "baz", "rebar", "rebaz" ],
+    testBool   => true,
+    testDouble => 3.14159265,
+    testFloat  => 3.14159265,
+    testInt    => 23,
+    testNum    => 42,
+    testRule   => qr/foo/,
     testStr      => "☃☃☃ - example - ☃☃☃",
     testStr2     => "the rain in spain falls gently",
     testTimeSpan => 60 * 24,
@@ -73,70 +71,79 @@ do {
 #####
 ##### Test auto-detected backing store type
 #####
-
-SKIP: {
-  skip( $nofs, 2 ) if $nofs;
-
-  my $class = "Devel::Ladybug::AutoTest01";
+do {
+  my $class = "Devel::Ladybug::Auto::Test01";
   ok(
     testCreate( $class => {%classPrototype} ),
     "Class allocate w/ auto-detected backing store"
   );
 
   kickClassTires($class);
-}
+};
 
 #####
 ##### Test YAML flatfile backing store
 #####
+do {
+  my $class = "Devel::Ladybug::YAMLTest";
+  ok(
+    testCreate(
+      $class => {
+        __useDbi       => false,
+        __useFlatfile  => true,
+        __useMemcached => 5,
+        __useRcs       => true,
+        %classPrototype
+      }
+    ),
+    "Class allocate w/ YAML"
+  );
 
-SKIP: {
-  skip( $nofs, 4 ) if $nofs;
+  kickClassTires($class);
+};
 
-  do {
-    my $class = "Ladybug::YAMLTest";
-    ok(
-      testCreate(
-        $class => {
-          __useDbi       => false,
-          __useFlatfile  => true,
-          __useMemcached => 5,
-          __useRcs       => true,
-          %classPrototype
-        }
-      ),
-      "Class allocate w/ YAML"
-    );
+ok(
+  testExtID(
+    "Devel::Ladybug::YAMLTest::ExtID",
+    {
+      __useDbi      => false,
+      __useFlatfile => true,
+    }
+  ),
+  "ExtID support for YAML"
+);
 
-    kickClassTires($class);
-  };
+my $supportsJSON;
 
-  do {
-    my $class = "Ladybug::JSONTest";
-    ok(
-      testCreate(
-        $class => {
-          __useDbi       => false,
-          __useFlatfile  => 2, # JSON Backend
-          __useMemcached => 5,
-          %classPrototype
-        }
-      ),
-      "Class allocate w/ JSON"
-    );
+if ( UNIVERSAL::isa( "Devel::Ladybug::YAMLTest", "Devel::Ladybug::Object" ) ) {
+  $supportsJSON = Devel::Ladybug::YAMLTest->__supportsJSON;
+}
 
-    kickClassTires($class);
-  };
+if ($supportsJSON) {
+  my $class = "Devel::Ladybug::JSONTest";
+  ok(
+    testCreate(
+      $class => {
+        __useDbi       => false,
+        __useFlatfile  => 2,       # JSON Backend
+        __useMemcached => 5,
+        %classPrototype
+      }
+    ),
+    "Class allocate w/ JSON"
+  );
+
+  kickClassTires($class);
 
   ok(
     testExtID(
-      "Ladybug::ExtIDTest",
+      "Devel::Ladybug::JSONTest::ExtID",
       {
-        __useDbi  => false,
+        __useDbi      => false,
         __useFlatfile => true,
       }
     ),
-    "ExtID support for YAML"
+    "ExtID support for JSON"
   );
 }
 
@@ -144,16 +151,8 @@ SKIP: {
 ##### SQLite Tests
 #####
 
-SKIP: {
-  if ($nofs) {
-    skip( $nofs, 5 );
-  } elsif ( !$Devel::Ladybug::Runtime::Backends->{"SQLite"} ) {
-    my $reason = "DBD::SQLite not installed";
-
-    skip( $reason, 5 );
-  }
-
-  my $class = "Ladybug::SQLiteTest01";
+if ( $Devel::Ladybug::Runtime::Backends->{"SQLite"} ) {
+  my $class = "Devel::Ladybug::SQLiteTest::GUID";
   ok(
     testCreate(
       $class => {
@@ -169,7 +168,7 @@ SKIP: {
 
   kickClassTires($class);
 
-  $class = "Ladybug::SQLiteTest02";
+  $class = "Devel::Ladybug::SQLiteTest::Serial";
   ok(
     testCreate(
       $class => {
@@ -186,31 +185,17 @@ SKIP: {
 
   kickClassTires($class);
 
-  ok(
-    testExtID(
-      "Ladybug::ExtIDTest",
-      {
-        __useDbi => 2
-      }
-    ),
-    "ExtID support for SQLite"
-  );
+  ok( testExtID( "Devel::Ladybug::SQLiteTest::ExtID", { __useDbi => 2 } ),
+    "ExtID support for SQLite" );
+} else {
+  warn "DBD::SQLite not installed, skipping tests";
 }
 
 #####
 ##### MySQL/InnoDB Tests
 #####
-
-SKIP: {
-  if ($nofs) {
-    skip( $nofs, 5 );
-  } elsif ( !$Devel::Ladybug::Runtime::Backends->{"MySQL"} ) {
-    my $reason = "DBD::mysql not installed or 'ladybug' db not ready";
-
-    skip( $reason, 5 );
-  }
-
-  my $class = "Devel::Ladybug::MySQLTest01";
+if ( $Devel::Ladybug::Runtime::Backends->{"MySQL"} ) {
+  my $class = "Devel::Ladybug::MySQLTest::GUID";
   ok(
     testCreate(
       $class => {
@@ -226,7 +211,7 @@ SKIP: {
 
   kickClassTires($class);
 
-  $class = "Devel::Ladybug::MySQLTest02";
+  $class = "Devel::Ladybug::MySQLTest::Serial";
   ok(
     testCreate(
       $class => {
@@ -243,31 +228,17 @@ SKIP: {
 
   kickClassTires($class);
 
-  ok(
-    testExtID(
-      "Devel::Ladybug::MySQL::ExtIDTest",
-      {
-        __useDbi => 1
-      }
-    ),
-    "ExtID support for MySQL"
-  );
+  ok( testExtID( "Devel::Ladybug::MySQLTest::ExtID", { __useDbi => 1 } ),
+    "ExtID support for MySQL" );
+} else {
+  warn "DBD::mysql not installed or 'ladybug' db not ready, skipping tests";
 }
 
 #####
 ##### PostgreSQL
 #####
-
-SKIP: {
-  if ($nofs) {
-    skip( $nofs, 5 );
-  } elsif ( !$Devel::Ladybug::Runtime::Backends->{"PostgreSQL"} ) {
-    my $reason = "DBD::Pg not installed or 'ladybug' db not ready";
-
-    skip( $reason, 5 );
-  }
-
-  my $class = "Devel::Ladybug::PgTest01";
+if ( $Devel::Ladybug::Runtime::Backends->{"PostgreSQL"} ) {
+  my $class = "Devel::Ladybug::PgTest::GUID";
   ok(
     testCreate(
       $class => {
@@ -283,7 +254,7 @@ SKIP: {
 
   kickClassTires($class);
 
-  $class = "Devel::Ladybug::PgTest02";
+  $class = "Devel::Ladybug::PgTest::Serial";
   ok(
     testCreate(
       $class => {
@@ -300,15 +271,10 @@ SKIP: {
 
   kickClassTires($class);
 
-  ok(
-    testExtID(
-      "Devel::Ladybug::PgSQL::ExtIDTest",
-      {
-        __useDbi => 3
-      }
-    ),
-    "ExtID support for PostgreSQL"
-  );
+  ok( testExtID( "Devel::Ladybug::PgTest::ExtID", { __useDbi => 3 } ),
+    "ExtID support for PostgreSQL" );
+} else {
+  warn "DBD::Pg not installed or 'ladybug' db not ready, skipping tests";
 }
 
 #####
@@ -324,9 +290,9 @@ sub kickClassTires {
 
   if ( $class->__useDbi ) {
 
- #
- # Just in case there was already a table, make sure the schema is fresh
- #
+    #
+    # Just in case there was already a table, make sure the schema is fresh
+    #
     ok( $class->__dropTable(), "Drop existing table" );
 
     ok( $class->__createTable, "Re-create table" );
@@ -366,16 +332,18 @@ sub kickClassTires {
 
     ok( $ids && $ids->count > 0, "Search hit count is > 0" );
 
-    if ( $ids ) {
-      $ids->each( sub {
-        my $id = shift;
-        my $obj;
-        isa_ok( $obj = $class->load($id), $class );
+    if ($ids) {
+      $ids->each(
+        sub {
+          my $id = shift;
+          my $obj;
+          isa_ok( $obj = $class->load($id), $class );
 
-        kickObjectTires($obj);
-      } );
+          kickObjectTires($obj);
+        }
+      );
     }
-  };
+  }
 
   my $i = 0;
 
@@ -409,7 +377,7 @@ sub kickClassTires {
     }
   );
 
-  is( $i, $count);
+  is( $i, $count );
 
   if ( $class->__useDbi ) {
     ok( $class->__dropTable(), "Drop table" );
@@ -430,9 +398,9 @@ sub kickObjectTires {
       if ( exists $instancePrototype{$key} ) {
         ok(
           ( $obj->{$key} == $instancePrototype{$key} )
-           && ( $obj->{$key} ne "Bogus Crap" )
-           && ( $obj->{$key} ne [ "Bogus Crap" ] ),
-          "$class: $key '$obj->{$key}' matches orig value '$instancePrototype{$key}'"
+            && ( $obj->{$key} ne "Bogus Crap" )
+            && ( $obj->{$key} ne ["Bogus Crap"] ),
+"$class: $key '$obj->{$key}' matches orig value '$instancePrototype{$key}'"
         );
       }
 
@@ -476,9 +444,7 @@ sub testExtID {
 
         parentId => $class->assert,
 
-        multiParentId => Devel::Ladybug::Array->assert(
-          $class->assert
-        )
+        multiParentId => Devel::Ladybug::Array->assert( $class->assert )
       }
     ),
     "Allocate child class"
@@ -488,11 +454,8 @@ sub testExtID {
     ok( $childClass->__dropTable(), "Drop " . $childClass->tableName );
     ok( $class->__dropTable(),      "Drop " . $class->tableName );
 
-    ok( $class->__createTable(), "Create " . $class->tableName );
-    ok(
-      $childClass->__createTable(),
-      "Create " . $childClass->tableName
-    );
+    ok( $class->__createTable(),      "Create " . $class->tableName );
+    ok( $childClass->__createTable(), "Create " . $childClass->tableName );
   }
 
   my $parent = $class->new( name => "Parent" );
@@ -500,26 +463,28 @@ sub testExtID {
   ok( $parent->save(), "Save parent object" );
 
   my $child = $childClass->new(
-    name     => "Child",
-    parentId => $parent->id,
+    name          => "Child",
+    parentId      => $parent->id,
     multiParentId => [ $parent->id ],
   );
 
   ok( $child->save(), "Save child object" );
 
   my $memberClass = $childClass->memberClass("parentId");
-  is($memberClass, $class);
-  isa_ok($memberClass->load( $child->parentId ), $class);
+  is( $memberClass, $class );
+  isa_ok( $memberClass->load( $child->parentId ), $class );
 
   my $multiMemberClass = $childClass->memberClass("multiParentId");
-  is($multiMemberClass, $class);
-  ok($child->multiParentId->count > 0, "Multi-parent count > 0");
-  $child->multiParentId->each( sub {
-    my $thisParentId = shift;
-    isa_ok($memberClass->load( $thisParentId ), $class);
-  } );
+  is( $multiMemberClass, $class );
+  ok( $child->multiParentId->count > 0, "Multi-parent count > 0" );
+  $child->multiParentId->each(
+    sub {
+      my $thisParentId = shift;
+      isa_ok( $memberClass->load($thisParentId), $class );
+    }
+  );
 
-  is($childClass->memberClass("parentId"), $class);
+  is( $childClass->memberClass("parentId"), $class );
 
   ok( $child->remove(),  "Remove child object" );
   ok( $parent->remove(), "Remove parent object" );
@@ -546,7 +511,7 @@ sub testExtID {
     ok( $class->__dropTable(),      "Drop " . $class->tableName );
   }
 
-  return testSelfReferentialClass($class, $prototype);
+  return testSelfReferentialClass( $class, $prototype );
 }
 
 sub testSelfReferentialClass {
@@ -562,8 +527,8 @@ sub testSelfReferentialClass {
       $class => {
         %{$prototype},
 
-        parentId => Devel::Ladybug::ExtID->assert( $class,
-          Devel::Ladybug::Type::subtype( optional => true )
+        parentId => Devel::Ladybug::ExtID->assert(
+          $class, Devel::Ladybug::Type::subtype( optional => true )
         ),
       }
     ),
@@ -571,7 +536,7 @@ sub testSelfReferentialClass {
   );
 
   if ( $class->__useDbi ) {
-    ok( $class->__dropTable(),      "Drop " . $class->tableName );
+    ok( $class->__dropTable(), "Drop " . $class->tableName );
 
     ok( $class->__createTable(), "Create " . $class->tableName );
   }
@@ -607,7 +572,7 @@ sub testSelfReferentialClass {
   }
 
   if ( $class->__useDbi ) {
-    ok( $class->__dropTable(),      "Drop " . $class->tableName );
+    ok( $class->__dropTable(), "Drop " . $class->tableName );
   }
 
   return $worked;

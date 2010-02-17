@@ -64,6 +64,7 @@ use warnings;
 use Cache::Memcached::Fast;
 use Carp::Heavy;
 use Clone qw| clone |;
+use Config;
 use Error qw| :try |;
 use File::Copy;
 use File::Path;
@@ -530,7 +531,7 @@ sub count {
     return $class->allIds->count;
   }
 
-  return $class->selectScalar($class->__countStatement);
+  return $class->selectScalar( $class->__countStatement );
 }
 
 =pod
@@ -552,7 +553,7 @@ Returns a L<Devel::Ladybug::Stream> of all IDs and Names in this table.
 
 sub stream {
   my $class = shift;
-  my $sub = shift;
+  my $sub   = shift;
 
   my $stream = Devel::Ladybug::Stream->new($class);
 
@@ -577,12 +578,12 @@ See collector usage in L<Devel::Ladybug::Array> docs.
 
 sub each {
   my $class = shift;
-  my $sub = shift;
+  my $sub   = shift;
 
   #
   # Delegate for instance method usage:
   #
-  return Devel::Ladybug::Hash::each($class, $sub) if $class->class;
+  return Devel::Ladybug::Hash::each( $class, $sub ) if $class->class;
 
   if ( $class->__useFlatfile && !$class->__useDbi ) {
     return $class->allIds->each($sub);
@@ -617,11 +618,10 @@ sub tuples {
 
   if ( $class->__useFlatfile && !$class->__useDbi ) {
     Devel::Ladybug::MethodIsAbstract->throw(
-      "tuples method not yet implemented for YAML backing stores"
-    );
+      "tuples method not yet implemented for YAML backing stores" );
   }
 
-  return $class->selectMulti($class->__tupleStatement);
+  return $class->selectMulti( $class->__tupleStatement );
 }
 
 =pod
@@ -1042,9 +1042,7 @@ sub loadYaml {
 
   my $hash;
 
-  eval {
-    $hash = YAML::Syck::Load($yaml) || die $@;
-  };
+  eval { $hash = YAML::Syck::Load($yaml) || die $@; };
 
   throw Devel::Ladybug::DataConversionFailed($@) if $@;
 
@@ -1186,6 +1184,14 @@ sub __useFlatfile {
 
     $useFlatfile = $args{"__useFlatfile"};
 
+    if ( $useFlatfile && $useFlatfile == Devel::Ladybug::StorageType::JSON ) {
+
+      #
+      # This will emit a warning under certain architectures:
+      #
+      $class->__supportsJSON;
+    }
+
     $class->set( "__useFlatfile", $useFlatfile );
   }
 
@@ -1223,11 +1229,10 @@ sub __useRcs {
 
   my $backend = $class->__useFlatfile;
 
-  if ( $use &&
-    ( !$backend || $backend != Devel::Ladybug::StorageType::YAML )
-  ) {
-    Devel::Ladybug::RuntimeError->throw(
-      "RCS requires a flatfile type of YAML");
+  if ( $use
+    && ( !$backend || $backend != Devel::Ladybug::StorageType::YAML ) )
+  {
+    Devel::Ladybug::RuntimeError->throw("RCS requires a flatfile type of YAML");
   }
 
   return $use;
@@ -1361,25 +1366,49 @@ sub __autoArgs {
 
   return %createArgs if %createArgs;
 
-  $createArgs{__useDbi}  = false;
+  $createArgs{__useDbi}      = false;
   $createArgs{__useFlatfile} = true;
 
   if ( $class->__supportsSQLite() ) {
     $createArgs{__useFlatfile} = false;
-    $createArgs{__useDbi} = Devel::Ladybug::StorageType::SQLite;
+    $createArgs{__useDbi}      = Devel::Ladybug::StorageType::SQLite;
   }
 
   if ( $class->__supportsPostgreSQL() ) {
     $createArgs{__useFlatfile} = false;
-    $createArgs{__useDbi} = Devel::Ladybug::StorageType::PostgreSQL;
+    $createArgs{__useDbi}      = Devel::Ladybug::StorageType::PostgreSQL;
   }
 
   if ( $class->__supportsMySQL() ) {
     $createArgs{__useFlatfile} = false;
-    $createArgs{__useDbi} = Devel::Ladybug::StorageType::MySQL;
+    $createArgs{__useDbi}      = Devel::Ladybug::StorageType::MySQL;
   }
 
   return %createArgs;
+}
+
+#
+# Bug in JSON::Syck prevents support under long double architecture
+#
+my $alreadyWarnedForLongDoubles;
+
+sub __supportsJSON {
+  my $class = shift;
+
+  my $lds = $Config{uselongdouble};
+
+  if ( $lds && $lds eq 'define' ) {
+    if ( !$alreadyWarnedForLongDoubles ) {
+      warn
+"JSON::Syck may cause problems when Perl's default float size is 'long double'-- proceed with caution! See https://rt.cpan.org/Ticket/Display.html?id=54725";
+
+      $alreadyWarnedForLongDoubles++;
+    }
+
+    return false;
+  }
+
+  return true;
 }
 
 sub __supportsSQLite {
@@ -1921,10 +1950,10 @@ sub __cacheKey {
     my $caller = caller();
 
     throw Devel::Ladybug::InvalidArgument(
-      "BUG (Check $caller): $class->__cacheKey(\$id) received undef for \$id" );
+      "BUG (Check $caller): $class->__cacheKey(\$id) received undef for \$id");
   } elsif (
-    $class->asserts->{ $class->__primaryKey }->isa("Devel::Ladybug::ID")
-  ) {
+    $class->asserts->{ $class->__primaryKey }->isa("Devel::Ladybug::ID") )
+  {
     return $id;
   } else {
     my $key = join( ':', $class, $id );
@@ -2259,7 +2288,7 @@ sub __checkYamlHost {
 
       if ( $thisHost ne $yamlHost ) {
         Devel::Ladybug::WrongHost->throw(
-          "YAML archives must be saved on host $yamlHost, not $thisHost" );
+          "YAML archives must be saved on host $yamlHost, not $thisHost");
       }
     }
   }

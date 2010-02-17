@@ -1,3 +1,7 @@
+.410
+  - Detect 'long double' support and warn about JSON::Syck bug (54725)
+  - Clean up test script
+
 .409
   - Add debugging + search tests to Ladybug.t
   - Consolidate backing store type enums into StorageType.pm
