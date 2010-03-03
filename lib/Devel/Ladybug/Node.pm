@@ -51,11 +51,49 @@ sub new {
   return $self;
 }
 
-sub save {
-  my $self = shift;
-  my @args = @_;
+sub __baseAsserts {
+  my $class = shift;
 
-  $self->SUPER::save(@args);
+  my @dtArgs;
+
+  if ( $class->get("__useDbi") ) {
+    @dtArgs = ( columnType => $class->__datetimeColumnType() );
+  }
+
+  my $asserts = $class->get("__baseAsserts");
+
+  if ( !$asserts ) {
+    if ( $class eq 'Devel::Ladybug::Node' ) {
+      $asserts = Devel::Ladybug::Hash->new(
+        id    => Devel::Ladybug::ID->assert,
+        name  => Devel::Ladybug::Name->assert,
+        ctime => Devel::Ladybug::DateTime->assert(
+          Devel::Ladybug::Type::subtype( @dtArgs )
+        ),
+        mtime => Devel::Ladybug::DateTime->assert(
+          Devel::Ladybug::Type::subtype( @dtArgs )
+        ),
+      );
+    } else {
+      $asserts = Devel::Ladybug::Hash->new;
+
+      for my $super ( $class->SUPER ) {
+        next if !$super->can("asserts");
+
+        my $theseAsserts = $super->asserts || next;
+
+        $theseAsserts->each( sub {
+          my $key = shift;
+
+          $asserts->{$key} = $theseAsserts->{$key};
+        } );
+      }
+    }
+
+    $class->set( "__baseAsserts", $asserts );
+  }
+
+  return ( clone $asserts );
 }
 
 =pod

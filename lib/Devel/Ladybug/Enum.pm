@@ -14,7 +14,7 @@ package Devel::Ladybug::Enum;
 
 =head1 NAME
 
-Devel::Ladybug::Enum - C style enumerated types in Perl
+Devel::Ladybug::Enum - C style enumerated types as Perl constants
 
 =head1 DESCRIPTION
 

@@ -767,36 +767,6 @@ sub join {
 
 =pod
 
-=item * $array->compact()
-
-Removes any undefined elements from self.
-
-  my $array = Devel::Ladybug::Array->new( 'foo', undef, 'bar' );
-
-  $array->compact(); # Array becomes ('foo', 'bar')
-
-=cut
-
-sub compact {
-  my $self = shift;
-
-  my $newSelf = $self->class()->new();
-
-  $self->each(
-    sub {
-      next unless defined($_);
-
-      $newSelf->push($_);
-    }
-  );
-
-  @{$self} = @{$newSelf};
-
-  return $self;
-}
-
-=pod
-
 =item * $array->unshift()
 
 Object wrapper for Perl's built-in C<unshift()> function. Functionally
@@ -829,7 +799,7 @@ Returns a pseudo-random array element.
 sub rand {
   my $self = shift;
 
-  return $self->[ int( rand( $self->count() ) ) ];
+  return $self->[ rand( $self->count ) ];
 }
 
 =pod
@@ -892,60 +862,6 @@ sub includes {
   my $item = shift;
 
   return grep { $_ eq $item } @{$self};
-}
-
-=pod
-
-=item * $array->grep($expr, [$mod])
-
-Returns an array of scalar matches if the expression has any hits in
-the array. Wrapper for Perl's built-in C<grep()> function.
-
-The second argument is an optional regex modifier string (e.g. "i",
-"gs", "gse", etc).
-
-  my $array = Devel::Ladybug::Array->new( qw| Jimbo Jimbob chucky | );
-
-  for ( @{ $array->grep(qr/^jim/, "i") } ) {
-    print "Matched $_\n";
-  };
-
-  #
-  # Expected output:
-  #
-  # Matched Jimbo
-  # Matched Jimbob
-  #
-
-=cut
-
-#
-# XXX TODO Revisit this with smart matching
-#
-sub grep {
-  my $self = shift;
-  my $expr = shift;
-  my $mod  = shift;
-
-  return if !$expr;
-
-  $mod ||= "";
-
-  if ( $mod !~ /^\w*$/ ) {
-    warn "Invalid regex modifier '$mod'";
-
-    return;
-  }
-
-  my $results;
-
-  eval qq|
-    \$results = Devel::Ladybug::Array->new(
-      grep { \$_ =~ /$expr/$mod } \@{ \$self }
-    );
-  |;
-
-  return $results;
 }
 
 =pod

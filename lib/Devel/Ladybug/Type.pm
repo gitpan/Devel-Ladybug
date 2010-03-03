@@ -36,9 +36,8 @@ inline keys:
     ...
   };
 
-More information may be found in the L<Devel::Ladybug::Class> and
-L<Devel::Ladybug::Type> modules, and in the documentation for
-specific object classes.
+More examples may be found in L<Devel::Ladybug::Class>, and in
+the documentation for specific object classes.
 
 =head1 DESCRIPTION
 
@@ -76,9 +75,6 @@ Override a database column type, eg "VARCHAR(128)".
 
 Set the default value for a given instance variable and database table
 column.
-
-Unless C<optional()> is given, the default value must also be included
-as an allowed value.
 
 =head2 deleteRefOpt => $option
 
@@ -305,11 +301,11 @@ use constant isStr => sub {
 
   my ( $package, $filename, $line ) = caller(1);
 
-  throw Devel::Ladybug::AssertFailed(
+  Devel::Ladybug::AssertFailed->throw(
     "undef is not a string, check $package:$line")
     if !defined $value;
 
-  throw Devel::Ladybug::AssertFailed(
+  Devel::Ladybug::AssertFailed->throw(
     "Received value is not a string, check $package:$line")
     if ref($value) && !overload::Overloaded($value);
 
@@ -319,12 +315,12 @@ use constant isStr => sub {
 use constant isFloat => sub {
   my $value = shift;
 
-  throw Devel::Ladybug::AssertFailed("undef is not a number")
+  Devel::Ladybug::AssertFailed->throw("undef is not a number")
     if !defined $value;
 
   my $tempValue = sprintf( '%.10f', $value );
 
-  throw Devel::Ladybug::AssertFailed("Received value is not a number")
+  Devel::Ladybug::AssertFailed->throw("Received value is not a number")
     if !Scalar::Util::looks_like_number($value);
 
   return true;
@@ -334,7 +330,7 @@ use constant isInt => sub {
   my $value = shift;
 
   if ( !defined($value) || ( "$value" !~ /^\d+$/ ) ) {
-    throw Devel::Ladybug::AssertFailed(
+    Devel::Ladybug::AssertFailed->throw(
       "Received value is not an integer");
   }
 
@@ -348,7 +344,7 @@ use constant isArray => sub {
     return true;
   }
 
-  throw Devel::Ladybug::AssertFailed("Received value is not an Array");
+  Devel::Ladybug::AssertFailed->throw("Received value is not an Array");
 };
 
 use constant isBool => sub {
@@ -358,7 +354,7 @@ use constant isBool => sub {
     || !Scalar::Util::looks_like_number($value)
     || ( ( $value != 0 ) && ( $value != 1 ) ) )
   {
-    throw Devel::Ladybug::AssertFailed(
+    Devel::Ladybug::AssertFailed->throw(
       "Received value must be 0 or 1, not: $value");
   }
 
@@ -369,7 +365,7 @@ use constant isCode => sub {
   my $code = shift;
 
   if ( !defined($code) ) {
-    throw Devel::Ladybug::AssertFailed("Code ref must not be undef");
+    Devel::Ladybug::AssertFailed->throw("Code ref must not be undef");
   }
 
   return true;
@@ -382,14 +378,14 @@ use constant isHash => sub {
     return true;
   }
 
-  throw Devel::Ladybug::AssertFailed("Received value is not a Hash");
+  Devel::Ladybug::AssertFailed->throw("Received value is not a Hash");
 };
 
 use constant isRef => sub {
   my $ref = shift;
 
   if ( !defined($ref) ) {
-    throw Devel::Ladybug::AssertFailed("Ref must not be undef");
+    Devel::Ladybug::AssertFailed->throw("Ref must not be undef");
   }
 
   return true;
@@ -399,7 +395,7 @@ use constant isRule => sub {
   my $rule = shift;
 
   if ( !defined($rule) ) {
-    throw Devel::Ladybug::AssertFailed("Rule must not be undef");
+    Devel::Ladybug::AssertFailed->throw("Rule must not be undef");
   }
 
   return true;
@@ -409,7 +405,7 @@ use constant isScalar => sub {
   my $scalar = shift;
 
   if ( !defined($scalar) ) {
-    throw Devel::Ladybug::AssertFailed("Scalar must not be undef");
+    Devel::Ladybug::AssertFailed->throw("Scalar must not be undef");
   }
 
   return true;
@@ -487,7 +483,7 @@ sub allowed {
     my @allowed = @{ $self->{__allowed} };
 
     if ( @allowed && !grep { $_ eq $value } @allowed ) {
-      throw Devel::Ladybug::AssertFailed(
+      Devel::Ladybug::AssertFailed->throw(
         "Value \"$value\" is not permitted");
     }
   }
@@ -643,7 +639,7 @@ sub test {
     } else {
       my ( $package, $filename, $line ) = caller;
 
-      throw Devel::Ladybug::AssertFailed(
+      Devel::Ladybug::AssertFailed->throw(
         "undef is not permitted for $key");
     }
   }
@@ -707,7 +703,7 @@ sub test {
       #
       # Unknown
       #
-      throw Devel::Ladybug::RuntimeError(
+      Devel::Ladybug::RuntimeError->throw(
         "UNSUPPORTED (FIXME?): Can't tell size of a $valueRef for $key"
       );
     }
@@ -718,7 +714,7 @@ sub test {
       # Fixed size was specified
       #
       if ( $wantSize != $haveSize ) {
-        throw Devel::Ladybug::AssertFailed(
+        Devel::Ladybug::AssertFailed->throw(
           sprintf 'Received size for %s was %i, needs to be %i',
           $key, $haveSize, $wantSize );
       }
@@ -729,13 +725,13 @@ sub test {
       # Min and/or max sizes were specified
       #
       if ( defined $minSize && $haveSize < $minSize ) {
-        throw Devel::Ladybug::AssertFailed(
+        Devel::Ladybug::AssertFailed->throw(
           sprintf 'Received size for %s was %i, needs to be >= %i',
           $key, $haveSize, $minSize );
       }
 
       if ( defined $maxSize && $haveSize > $maxSize ) {
-        throw Devel::Ladybug::AssertFailed(
+        Devel::Ladybug::AssertFailed->throw(
           sprintf 'Received size for %s was %i, needs to be <= %i',
           $key, $haveSize, $maxSize );
       }
@@ -750,13 +746,13 @@ sub test {
     my $max = $self->max();
 
     if ( defined $min && "$value" < $min ) {
-      throw Devel::Ladybug::AssertFailed(
+      Devel::Ladybug::AssertFailed->throw(
         sprintf 'Received value of %s was %f, needs to be >= %f',
         $key, $value, $min );
     }
 
     if ( defined $max && "$value" > $max ) {
-      throw Devel::Ladybug::AssertFailed(
+      Devel::Ladybug::AssertFailed->throw(
         sprintf 'Received value for %s was %f, needs to be <= %f',
         $key, $value, $max );
     }
@@ -769,7 +765,7 @@ sub test {
     my $regex = $self->regex();
 
     if ( $value !~ /$regex/ ) {
-      throw Devel::Ladybug::AssertFailed(
+      Devel::Ladybug::AssertFailed->throw(
         sprintf 'Received value for %s was %s, needs to match /%s/',
         $key, $value, $regex );
     }
@@ -781,7 +777,7 @@ sub test {
   my $sub = $self->code();
 
   if ( !$sub ) {
-    throw Devel::Ladybug::RuntimeError(
+    Devel::Ladybug::RuntimeError->throw(
       "BUG IN CALLER: No code block set in assertion for key $key");
   }
 
@@ -791,7 +787,7 @@ sub test {
   catch Error with {
     my $error = $_[0];
 
-    throw Devel::Ladybug::AssertFailed(
+    Devel::Ladybug::AssertFailed->throw(
       sprintf 'Assertion for %s "%s" failed: %s',
       $key, $value, $error );
   };
@@ -808,7 +804,7 @@ sub test {
       my $memberSuccess = $self->memberType->test( $key, $element );
 
       if ( !$memberSuccess ) {
-        throw Devel::Ladybug::AssertFailed(
+        Devel::Ladybug::AssertFailed->throw(
           "Element assertion for key $key failed");
       }
     }
@@ -890,7 +886,7 @@ our %RULES = (
       && ( grep { uc($value) eq $_ }
       @{ (RefOpts) } )
       || (
-      throw Devel::Ladybug::InvalidArgument(
+      Devel::Ladybug::InvalidArgument->throw(
         "Invalid reference option specified")
       );
 
@@ -904,7 +900,7 @@ our %RULES = (
       && ( grep { uc($value) eq $_ }
       @{ (RefOpts) } )
       || (
-      throw Devel::Ladybug::InvalidArgument(
+      Devel::Ladybug::InvalidArgument->throw(
         "Invalid reference option specified")
       );
 
@@ -912,7 +908,7 @@ our %RULES = (
   },
 
   optional => sub {
-    throw Devel::Ladybug::InvalidArgument(
+    Devel::Ladybug::InvalidArgument->throw(
       "Extra arguments received by optional()")
       if @_ > 1;
 
@@ -926,7 +922,7 @@ our %RULES = (
   },
 
   serial => sub {
-    throw Devel::Ladybug::InvalidArgument(
+    Devel::Ladybug::InvalidArgument->throw(
       "Extra arguments received by serial()")
       if @_ > 1;
 
@@ -958,7 +954,7 @@ our %RULES = (
   },
 
   indexed => sub {
-    throw Devel::Ladybug::InvalidArgument(
+    Devel::Ladybug::InvalidArgument->throw(
       "Extra arguments received by indexed()")
       if @_ > 1;
 

@@ -222,7 +222,6 @@ sub __concatNameStatement {
   # value in a display name. If the value is an ID, look up the name.
   #
   for my $extAttr (@uniqueAttrs) {
-
     #
     # Get the class
     #
@@ -732,7 +731,7 @@ sub __elementParentKey {
 sub __elementIndexKey {
   my $class = shift;
 
-  return "elementIndex";
+  return "name";
 }
 
 true;

@@ -13,6 +13,8 @@ package Devel::Ladybug::Name;
 use strict;
 use warnings;
 
+use Devel::Ladybug::Enum::Bool;
+
 use base qw| Devel::Ladybug::Str |;
 
 sub assert {
@@ -32,13 +34,17 @@ sub assert {
   # Name must always be unique, one way or another...
   #
   if ( !$parsed{unique} ) {
-    $parsed{unique} = 1;
+    $parsed{unique} = true;
+  }
+
+  if ( !defined $parsed{optional} ) {
+    $parsed{optional} = true;
   }
 
   return $class->__assertClass()->new(%parsed);
 }
 
-1;
+true;
 __END__
 
 =pod

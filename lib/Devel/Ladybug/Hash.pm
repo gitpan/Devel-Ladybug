@@ -43,38 +43,16 @@ Hash table object to respond to.
 
   my $hashFromRef = Devel::Ladybug::Hash->new($hashref); # Keeps orig ref
 
-=head1 PUBLIC CLASS METHODS
-
-=over 4
-
-=item * $class->assert(*@rules)
-
-Returns a Devel::Ladybug::Type::Hash instance encapsulating the
-received subtyping rules.
-
-Really, don't do this. If you think you need to assert a Hash, please
-see "AVOIDING HASH ASSERTIONS" at the end of this document for an
-alternative approach.
-
 =cut
 
 sub assert {
   my $class = shift;
   my @rules = @_;
 
-  my %parsed =
-    Devel::Ladybug::Type::__parseTypeArgs( Devel::Ladybug::Type::isHash,
-    @rules );
-
-  $parsed{default} ||= {};
-  $parsed{columnType} ||= 'TEXT';
-
-  return $class->__assertClass()->new(%parsed);
+  Devel::Ladybug::MethodIsAbstract->throw("Hash is not an assertable type");
 }
 
 =pod
-
-=back
 
 =head1 PUBLIC INSTANCE METHODS
 
@@ -100,7 +78,7 @@ C<emit>.
 
     print "Key $key is $object->{$key}\n";
 
-    emit "<a name=\"$key\">$object->{$key}</a>";
+    yield("<a name=\"$key\">$object->{$key}</a>");
   } );
 
 =cut
@@ -258,92 +236,6 @@ sub isEmpty {
 
 =back
 
-=head1 AVOIDING HASH ASSERTIONS
-
-One might think to assert the Hash type in order to store hashtables
-inside of objects in a free-form manner.
-
-Devel::Ladybug could technically do this, but this documentation is
-here to tell you not to. A recommended approach to associating
-arbitrary key/value pairs with database-backed Devel::Ladybug objects
-is provided below.
-
-Do not do this:
-
-  #
-  # File: Example.pm
-  #
-  use Devel::Ladybug qw| :all |;
-
-  create "YourApp::Example" => {
-    someInlineHash => Devel::Ladybug::Hash->assert()
-  };
-
-Rather, explicitly create a main class, and also an extrinsics class
-which handles the association of linked values. Manually creating
-linked classes in this manner is not as quick to code for or represent
-in object form, but it mitigates the creation of deeply nested, complex
-objects and "sprawling" sets of possible values which may arise from
-systems with lots of users populating data. Something akin to the
-following is the recommended approach:
-
-  #
-  # File: Example.pm
-  #
-  # This is the main class:
-  #
-  create "YourApp::Example" => {
-    #
-    # Assertions and methods here...
-    #
-  };
-
-  #
-  # File: Example/Attrib.pm
-  #
-  # This is where we tuck extrinsic attributes:
-  #
-  use Devel::Ladybug qw| :all |;
-  use YourApp::Example;
-
-  create "YourApp::Example::Attrib" => {
-    exampleId => YourApp::Example->assert,
-
-    elementKey => Devel::Ladybug::Str->assert(
-      #
-      # ...
-      #
-    ),
-
-    elementValue => Devel::Ladybug::Str->assert(
-      # Assert any vector or scalar Devel::Ladybug object class, as needed.
-      #
-      # Devel::Ladybug::Str can act as a catch-all for scalar values.
-      #
-      # ...
-    ),
-  }
-
-An extension of this approach is to create multiple extrinsincs
-classes, providing specific subtyping rules for different kinds of
-key/value pairs. For example, one might create a table of linked values
-which are always either true or false:
-
-  #
-  # File: Example: BoolAttrib.pm
-  #
-
-  use Devel::Ladybug qw| :all |;
-  use YourApp::Example;
-
-  create "YourApp::Example::BoolAttrib" => {
-    exampleId => Devel::Ladybug::ExtId->assert( "YourApp::Example" ),
-
-    elementKey => Devel::Ladybug::Str->assert( ),
-
-    elementValue => Devel::Ladybug::Bool->assert( ),
-  };
-  
 =head1 SEE ALSO
 
 This file is part of L<Devel::Ladybug>.

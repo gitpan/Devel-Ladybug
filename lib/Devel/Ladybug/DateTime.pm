@@ -34,15 +34,14 @@ sub assert {
 
   my %parsed = Devel::Ladybug::Type::__parseTypeArgs(
     sub {
-      my $time = $_[0];
+      my $time = shift;
 
       if ( $time && $time =~ /$datetimeRegex/ ) {
         $time = $class->newFrom( $1, $2, $3, $4, $5, $6 );
       }
 
       Scalar::Util::looks_like_number("$time")
-        || Devel::Ladybug::AssertFailed->throw(
-        "Received value is not a time");
+        || Devel::Ladybug::AssertFailed->throw("Received value is not a time");
     },
     @rules
   );

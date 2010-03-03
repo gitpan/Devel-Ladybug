@@ -1,3 +1,14 @@
+.411
+  - "__init" Class callback was mis-documented as "init"
+  - "__baseAsserts" should no longer be used; all asserted keys in a
+    superclass are inherited now.
+  - Array assertions -- "elementIndex" column removed from element
+    tables. Instead, the "name" column is used for this purpose.
+    Developers with Array assertions in their older DBI-backed
+    classes will need to manually rename the element table's
+    "elementIndex" column to "name".
+  - "name" is now optional by default
+
 .410
   - Detect 'long double' support and warn about JSON::Syck bug (54725)
   - Clean up test script

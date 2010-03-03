@@ -290,6 +290,20 @@ sub set {
   return true;
 }
 
+sub SUPER {
+  my $class = shift;
+
+  my @isa;
+
+  do {
+    no strict "refs";
+
+    @isa = @{"$class\::ISA"};
+  };
+
+  return wantarray ? @isa : $isa[0];
+}
+
 ##
 ## End of package
 ##

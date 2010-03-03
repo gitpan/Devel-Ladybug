@@ -402,12 +402,12 @@ sub kickObjectTires {
             && ( $obj->{$key} ne ["Bogus Crap"] ),
 "$class: $key '$obj->{$key}' matches orig value '$instancePrototype{$key}'"
         );
-      }
 
-      isa_ok( $obj->{$key}, $type->objectClass );
+        isa_ok( $obj->{$key}, $type->objectClass );
 
-      if ( $obj->{$key}->isa("Devel::Ladybug::Array") ) {
-        is( $obj->{$key}->count, 5, "Compare element count" );
+        if ( $obj->{$key}->isa("Devel::Ladybug::Array") ) {
+          is( $obj->{$key}->count, 5, "Compare element count" );
+        }
       }
     }
   );

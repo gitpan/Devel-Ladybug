@@ -368,7 +368,7 @@ sub __elementParentKey {
 sub __elementIndexKey {
   my $class = shift;
 
-  return "\"elementIndex\"";
+  return "\"name\"";
 }
 
 my $warned = { };
