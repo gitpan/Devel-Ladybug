@@ -103,8 +103,6 @@ use Devel::Ladybug::Name;
 
 use Devel::Ladybug::Type;
 
-use Devel::Ladybug::Redefines;
-
 #
 # RCS setup
 #
@@ -1387,28 +1385,20 @@ sub __autoArgs {
   return %createArgs;
 }
 
-#
-# Bug in JSON::Syck prevents support under long double architecture
-#
 my $alreadyWarnedForLongDoubles;
 
 sub __supportsJSON {
   my $class = shift;
 
-  my $lds = $Config{uselongdouble};
+  my $worked;
 
-  if ( $lds && $lds eq 'define' ) {
-    if ( !$alreadyWarnedForLongDoubles ) {
-      warn
-"JSON::Syck may cause problems when Perl's default float size is 'long double'-- proceed with caution! See https://rt.cpan.org/Ticket/Display.html?id=54725";
+  eval {
+    require JSON::Syck;
 
-      $alreadyWarnedForLongDoubles++;
-    }
+    $worked++;
+  };
 
-    return false;
-  }
-
-  return true;
+  return $worked;
 }
 
 sub __supportsSQLite {
@@ -2249,6 +2239,17 @@ my $alreadyWarnedForRcs;
 sub __init {
   my $class = shift;
 
+  my $lds = $Config{uselongdouble};
+
+  if ( $lds && $lds eq 'define' ) {
+    if ( !$alreadyWarnedForLongDoubles ) {
+      warn
+"Perl's default float size is 'long double'; Ladybug's dependencies may not do the right thing-- proceed with caution!";
+
+      $alreadyWarnedForLongDoubles++;
+    }
+  }
+
   if ( $class->__useRcs ) {
     if ( $^O eq 'openbsd' ) {
 
@@ -2278,7 +2279,9 @@ sub __init {
     }
   }
 
-  if (!$alreadyWarnedForMemcached
+  if (
+    memcachedHosts
+    && !$alreadyWarnedForMemcached
     && $class->__useMemcached
     && ( !$memd || !%{ $memd->server_versions } ) )
   {

@@ -1,3 +1,9 @@
+.412
+  - Minor decruft and "mostly still works" release
+  - Don't warn about memcached if memcachedHosts is undef in the rc
+  - Redefines.pm removed; this has not been needed for a long time
+  - Move warning about long double support to top level
+
 .411
   - "__init" Class callback was mis-documented as "init"
   - "__baseAsserts" should no longer be used; all asserted keys in a

@@ -35,22 +35,26 @@ ID objects stringify as base64.
   };
 
   #
-  # Instantiate an existing GUID from base64
+  # Instantiate from string:
   #
   do {
     my $id = Devel::Ladybug::ID->new("EO2JXisF3hGSSg+s3t/Aww==");
 
+    ### Constructor also accepts non-base64:
+
+    # my $id = Devel::Ladybug::ID->new(
+    #   "EE887D28-3B80-11DF-BF59-00FF6073B66A"
+    # );
+
     # ...
   };
 
-You may also instantiate from and translate between string, hex, or
-binary GUID forms using the constructors inherited from L<Data::GUID>.
-
-See L<Data::GUID> and L<Data::UUID> for more details.
+You may also translate between string, hex, or binary GUID forms
+using the constructors inherited from L<Data::GUID>.
 
 =head1 SEE ALSO
 
-L<Devel::Ladybug::Serial>
+L<Devel::Ladybug::Serial>, L<Data::GUID>, L<Data::UUID>
 
 This file is part of L<Devel::Ladybug>.
 

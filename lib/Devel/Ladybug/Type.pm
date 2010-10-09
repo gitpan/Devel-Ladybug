@@ -263,7 +263,6 @@ use Error qw| :try |;
 
 use Devel::Ladybug::Enum::Bool;
 use Devel::Ladybug::Exceptions;
-use Devel::Ladybug::Redefines;
 # use Devel::Ladybug::Persistence::MySQL;    # For RefOpts constants
 
 use constant RefOpts =>

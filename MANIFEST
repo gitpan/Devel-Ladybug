@@ -29,7 +29,6 @@ lib/Devel/Ladybug/Persistence/MySQL.pm
 lib/Devel/Ladybug/Persistence/PostgreSQL.pm
 lib/Devel/Ladybug/Persistence/SQLite.pm
 lib/Devel/Ladybug/Persistence.pm
-lib/Devel/Ladybug/Redefines.pm
 lib/Devel/Ladybug/Rule.pm
 lib/Devel/Ladybug/Runtime.pm
 lib/Devel/Ladybug/Scalar.pm

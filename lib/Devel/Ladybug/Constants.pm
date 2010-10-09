@@ -338,6 +338,13 @@ run.  In the event that a C<.ladybugrc> was not found, Devel::Ladybug
 will exit with an instructive message. Read and follow the provided
 steps when this occurs.
 
+=item * Not using memcached?
+
+If memcached is not being used, set memcachedHosts to undef in the
+rc. In YAML:
+
+  memcachedHosts: ~
+
 =item * Some symbol not exported
 
   Uncaught exception from user code:
