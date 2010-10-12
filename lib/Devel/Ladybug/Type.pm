@@ -320,7 +320,7 @@ use constant isFloat => sub {
   my $tempValue = sprintf( '%.10f', $value );
 
   Devel::Ladybug::AssertFailed->throw("Received value is not a number")
-    if !Scalar::Util::looks_like_number($value);
+    if !Scalar::Util::looks_like_number("$value");
 
   return true;
 };
@@ -350,7 +350,7 @@ use constant isBool => sub {
   my $value = shift;
 
   if ( !defined($value)
-    || !Scalar::Util::looks_like_number($value)
+    || !Scalar::Util::looks_like_number("$value")
     || ( ( $value != 0 ) && ( $value != 1 ) ) )
   {
     Devel::Ladybug::AssertFailed->throw(
@@ -979,7 +979,7 @@ our %RULES = (
     #
     if ( $value
       && !ref($value)
-      && !Scalar::Util::looks_like_number($value) )
+      && !Scalar::Util::looks_like_number("$value") )
     {
       $value = [$value];
     }

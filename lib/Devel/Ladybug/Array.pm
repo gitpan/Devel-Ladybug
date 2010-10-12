@@ -117,8 +117,8 @@ sub compare {
       my $B = $second->[$i];
 
       if (
-        Scalar::Util::looks_like_number($A)
-         && Scalar::Util::looks_like_number($B)
+        Scalar::Util::looks_like_number("$A")
+         && Scalar::Util::looks_like_number("$B")
       ) {
         return false if "$A" != "$B";
       } else {
