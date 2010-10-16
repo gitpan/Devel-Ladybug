@@ -37,6 +37,12 @@ require_ok("Devel::Ladybug::Runtime");
 ok( Devel::Ladybug::Runtime->import($path), 'setup environment' );
 
 do {
+  #
+  # Just to make sure...
+  #
+  my $num = Devel::Ladybug::Int->new(42);
+  ok(Scalar::Util::looks_like_number("$num"), "$num is a number");
+
   %classPrototype = (
     testArray => Devel::Ladybug::Array->assert( Devel::Ladybug::Str->assert() ),
     testBool  => Devel::Ladybug::Bool->assert(),

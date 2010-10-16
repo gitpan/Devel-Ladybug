@@ -1,3 +1,6 @@
+.413
+  - Version bump of developer release
+
 .412_01
   - Wrap quotes around args to looks_like_number. This is a shot in
     the dark to fix stuff found by cpan testers

@@ -11,7 +11,7 @@
 
 package Devel::Ladybug;
 
-our $VERSION = '0.412_01';
+our $VERSION = '0.413';
 
 use strict;
 use diagnostics;
@@ -111,7 +111,7 @@ RCS may be used in conjunction with the permanent backing store.
 
 =head1 VERSION
 
-This documentation is for version B<0.412_01> of Devel::Ladybug.
+This documentation is for version B<0.413> of Devel::Ladybug.
 
 =head1 FRAMEWORK ASSUMPTIONS
 
@@ -586,13 +586,15 @@ the output from C<make test>)
 
 =head2 BUGS AND LIMITATIONS
 
-This code is now in maintenance mode, and is unlikely to receive
-significant new features. There are several similar frameworks on
-CPAN which are more active, you may want to check those out first.
+Ladybug is unlikely to receive significant new features, though it
+may see future maintenance releases. There are several similar
+frameworks on CPAN which are more active (see Moose, DBIx::Class),
+you may want to check those out first.
 
-Tests show that Ladybug objects have precision problems, if Perl was
-built with long double support. This is a compilation issue with
-one of Ladybug's dependencies, and has not been isolated.
+Tests show that floating point values in Ladybug have precision
+problems, if Perl was built with long double support. This is a
+compilation issue with one of Ladybug's dependencies, and has not
+been isolated.
 
 =head1 SEE ALSO
 
